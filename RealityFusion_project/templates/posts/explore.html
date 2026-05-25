@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %} - Explore{% endblock %}
+{% block content %}
+<style>
+    .explore-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .explore-item { aspect-ratio: 1; overflow: hidden; cursor: pointer; position: relative; }
+    .explore-item img { width: 100%; height: 100%; object-fit: cover; }
+    .explore-item .overlay { position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);display:none;align-items:center;justify-content:center;color:white;gap:20px; }
+    .explore-item:hover .overlay { display:flex; }
+    .explore-item .overlay span { font-size:14px;font-weight:600; }
+    .explore-item .no-image { background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#555;font-size:14px; }
+</style>
+<div class="page-title">Explore</div>
+<div class="explore-grid">
+    {% for post in posts %}
+    <div class="explore-item">
+        {% if post.image %}
+            <img src="{{ post.image.url }}" alt="Post">
+        {% else %}
+            <div class="no-image"><i class="bi bi-text-paragraph" style="font-size:24px;"></i></div>
+        {% endif %}
+        <div class="overlay">
+            <span><i class="bi bi-heart-fill"></i> {{ post.likes.count }}</span>
+            <span><i class="bi bi-chat-fill"></i> {{ post.comments.count }}</span>
+        </div>
+    </div>
+    {% empty %}
+    <div class="no-posts" style="grid-column:span 3;">
+        <i class="bi bi-compass"></i>
+        <h5>No posts to explore</h5>
+        <p class="text-muted">Posts will appear here as users create them.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %} - Edit Profile{% endblock %}
+{% block content %}
+<style>
+.settings-wrapper { display: flex; max-width: 935px; margin: 20px auto; min-height: 70vh; }
+.settings-sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid #262626; }
+.settings-sidebar .user-card { padding: 16px 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #262626; margin-bottom: 8px; }
+.settings-sidebar .user-card img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.settings-sidebar .user-card .avatar-placeholder { width: 44px; height: 44px; border-radius: 50%; background: #363636; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #555; }
+.settings-sidebar .user-card .info { flex: 1; }
+.settings-sidebar .user-card .info .name { font-size: 14px; font-weight: 600; color: #f5f5f5; }
+.settings-sidebar .user-card .info .email { font-size: 12px; color: #888; }
+.settings-nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; color: #f5f5f5; text-decoration: none; font-size: 14px; }
+.settings-nav-item:hover { background: #1a1a1a; }
+.settings-nav-item.active { background: #1a1a1a; font-weight: 600; }
+.settings-nav-item i { font-size: 20px; width: 24px; text-align: center; }
+.settings-content { flex: 1; padding: 0 40px; max-width: 600px; }
+.settings-content h3 { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+.profile-edit-form label { color: #a8a8a8; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.profile-edit-form .form-control, .profile-edit-form .form-control-file { background: transparent; border: 1px solid #262626; color: #f5f5f5; border-radius: 8px; padding: 12px; font-size: 14px; width: 100%; }
+.profile-edit-form .form-control:focus { border-color: #0095f6; box-shadow: none; }
+.profile-edit-form textarea.form-control { min-height: 80px; resize: vertical; }
+.profile-edit-form input[type="file"] { background: transparent; color: #a8a8a8; padding: 8px 0; border: none; }
+.avatar-section { text-align: center; margin-bottom: 24px; }
+.avatar-section img { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid #262626; }
+.avatar-section .avatar-placeholder-lg { width: 96px; height: 96px; border-radius: 50%; background: #363636; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 40px; color: #555; border: 3px solid #262626; }
+.avatar-section .change-photo-btn { display: inline-block; margin-top: 8px; color: #0095f6; font-size: 13px; font-weight: 600; cursor: pointer; }
+.ig-btn-save { background: #0095f6; border: none; color: white; padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; width: 100%; cursor: pointer; }
+.ig-btn-save:hover { background: #1877f2; }
+.errorlist { color: #ed4956; font-size: 13px; list-style: none; padding: 0; margin: 4px 0 0; }
+@media (max-width: 768px) { .settings-sidebar { display: none; } .settings-content { padding: 0 16px; } }
+</style>
+
+<div class="settings-wrapper">
+    <div class="settings-sidebar">
+        <div class="user-card">
+            {% if profile.profile_pic %}
+                <img src="{{ profile.profile_pic.url }}">
+            {% else %}
+                <div class="avatar-placeholder"><i class="bi bi-person-fill"></i></div>
+            {% endif %}
+            <div class="info">
+                <div class="name">{{ request.user.username|default:request.user.email }}</div>
+                <div class="email">{{ request.user.email }}</div>
+            </div>
+        </div>
+        <a href="{% url 'settings' %}" class="settings-nav-item"><i class="bi bi-gear-fill"></i> Settings</a>
+        <a href="{% url 'settings_profile_edit' %}" class="settings-nav-item active"><i class="bi bi-person-circle"></i> Edit Profile</a>
+        <a href="{% url 'settings_change_password' %}" class="settings-nav-item"><i class="bi bi-shield-lock"></i> Change Password</a>
+        <a href="{% url 'settings_privacy' %}" class="settings-nav-item"><i class="bi bi-lock"></i> Privacy</a>
+        <a href="{% url 'settings_notifications' %}" class="settings-nav-item"><i class="bi bi-bell"></i> Notifications</a>
+        <a href="{% url 'settings_security' %}" class="settings-nav-item"><i class="bi bi-shield-check"></i> Security</a>
+        <a href="{% url 'settings_appearance' %}" class="settings-nav-item"><i class="bi bi-palette"></i> Appearance</a>
+        <a href="{% url 'settings_saved_content' %}" class="settings-nav-item"><i class="bi bi-bookmark"></i> Saved</a>
+        <a href="{% url 'settings_blocked_users' %}" class="settings-nav-item"><i class="bi bi-slash-circle"></i> Blocked</a>
+        <a href="{% url 'settings_story' %}" class="settings-nav-item"><i class="bi bi-stars"></i> Story</a>
+        <a href="{% url 'settings_messaging' %}" class="settings-nav-item"><i class="bi bi-chat-dots"></i> Messaging</a>
+    </div>
+
+    <div class="settings-content">
+        <h3>Edit Profile</h3>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" style="background:#1a1a1a;color:white;border:1px solid #262626;border-radius:8px;">
+                    {{ message }}
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" class="profile-edit-form">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+
+            <div class="avatar-section">
+                {% if profile.profile_pic %}
+                    <img src="{{ profile.profile_pic.url }}" id="avatarPreview">
+                {% else %}
+                    <div class="avatar-placeholder-lg"><i class="bi bi-person-fill"></i></div>
+                {% endif %}
+                <div class="change-photo-btn" onclick="document.getElementById('id_profile_pic').click()">Change profile photo</div>
+                <input type="file" name="profile_pic" accept="image/*" id="id_profile_pic" style="display:none;" onchange="document.getElementById('avatarPreview').src = URL.createObjectURL(this.files[0]); this.form.submit.click();">
+            </div>
+
+            <div class="mb-3">
+                <label>Username</label>
+                <input type="text" name="username" class="form-control" value="{{ form.username.value|default:'' }}" placeholder="Username">
+                {% if form.username.errors %}<ul class="errorlist">{% for e in form.username.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label>Email</label>
+                <input type="email" name="email" class="form-control" value="{{ form.email.value|default:'' }}" placeholder="Email">
+                {% if form.email.errors %}<ul class="errorlist">{% for e in form.email.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label>Bio</label>
+                <textarea name="bio" class="form-control" rows="3" placeholder="Bio">{{ form.bio.value|default:'' }}</textarea>
+                {% if form.bio.errors %}<ul class="errorlist">{% for e in form.bio.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label>Website</label>
+                <input type="url" name="website" class="form-control" value="{{ form.website.value|default:'' }}" placeholder="Website URL">
+                {% if form.website.errors %}<ul class="errorlist">{% for e in form.website.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label>Phone Number</label>
+                <input type="text" name="phone_number" class="form-control" value="{{ form.phone_number.value|default:'' }}" placeholder="Phone number">
+                {% if form.phone_number.errors %}<ul class="errorlist">{% for e in form.phone_number.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label>Gender</label>
+                <select name="gender" class="form-control">
+                    {% for value, label in form.fields.gender.choices %}
+                        <option value="{{ value }}" {% if form.gender.value == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% if form.gender.errors %}<ul class="errorlist">{% for e in form.gender.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+
+            <button type="submit" class="ig-btn-save" name="submit"><i class="bi bi-check-lg"></i> Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('id_profile_pic').addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            var preview = document.getElementById('avatarPreview');
+            if (preview) preview.src = ev.target.result;
+        };
+        reader.readAsDataURL(this.files[0]);
+    }
+});
+</script>
+{% endblock %}

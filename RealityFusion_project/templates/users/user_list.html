@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %} - Discover{% endblock %}
+{% block content %}
+<style>
+    .discover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .discover-card { background: #000; border: 1px solid #262626; border-radius: 12px; overflow: hidden; transition: 0.2s; }
+    .discover-card:hover { border-color: #363636; }
+    .discover-card .card-body { padding: 20px; text-align: center; }
+    .discover-card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+    .discover-card .name { font-size: 14px; font-weight: 600; margin-top: 12px; display: block; }
+    .discover-card .email { font-size: 12px; color: #555; }
+    .discover-card .stats { font-size: 12px; color: #555; margin: 8px 0; }
+    .btn-follow {
+        background: #0095f6; color: white; border: none; padding: 6px 24px;
+        border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer;
+        width: 100%; transition: 0.15s;
+    }
+    .btn-follow:hover { background: #1877f2; }
+    .btn-following {
+        background: transparent; color: #f5f5f5; border: 1px solid #363636;
+        padding: 6px 24px; border-radius: 8px; font-weight: 600; font-size: 13px;
+        cursor: pointer; width: 100%; transition: 0.15s;
+    }
+    .btn-following:hover { background: #1a1a1a; border-color: #ed4956; color: #ed4956; }
+    .btn-message {
+        background: transparent; color: #f5f5f5; border: 1px solid #363636;
+        padding: 6px 24px; border-radius: 8px; font-weight: 600; font-size: 13px;
+        cursor: pointer; width: 100%; margin-top: 8px; text-decoration: none; display: inline-block;
+    }
+    .btn-message:hover { background: #1a1a1a; }
+</style>
+<div class="page-title">Discover People</div>
+<div class="discover-grid">
+    {% for u in users %}
+        <div class="discover-card" id="user-card-{{ u.id }}">
+            <div class="card-body">
+                <a href="{% url 'profile' u.id %}">
+                    {% if u.profile.profile_pic %}
+                        <img src="{{ u.profile.profile_pic.url }}">
+                    {% else %}
+                        <div style="width:80px;height:80px;border-radius:50%;background:#363636;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:32px;color:#555;">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                    {% endif %}
+                    <span class="name">{{ u.username|default:u.email }}</span>
+                    <div class="email">{{ u.email }}</div>
+                </a>
+                <div class="stats">{{ u.post_count }} posts · <span id="fc-{{ u.id }}">{{ u.follower_count }}</span> followers</div>
+                <button id="follow-btn-{{ u.id }}"
+                        class="{% if u.id in following_ids %}btn-following{% else %}btn-follow{% endif %}"
+                        onclick="toggleFollow({{ u.id }})">
+                    {% if u.id in following_ids %}
+                        Following
+                    {% else %}
+                        <i class="bi bi-person-plus"></i> Follow
+                    {% endif %}
+                </button>
+                <a href="{% url 'chat' u.id %}" class="btn-message"><i class="bi bi-chat"></i> Message</a>
+            </div>
+        </div>
+    {% empty %}
+        <div class="no-posts" style="grid-column:1/-1;">
+            <i class="bi bi-people"></i>
+            <h5>No other users</h5>
+            <p class="text-muted">Invite your friends to join RealityFusion!</p>
+        </div>
+    {% endfor %}
+</div>
+
+<script>
+function toggleFollow(userId) {
+    var btn = document.getElementById('follow-btn-' + userId);
+    if (!btn) return;
+    var isFollowing = btn.classList.contains('btn-following');
+    var url = isFollowing ? '/users/unfollow/' + userId + '/' : '/users/follow/' + userId + '/';
+    btn.disabled = true;
+    fetch(url, {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (isFollowing) {
+            btn.className = 'btn-follow';
+            btn.innerHTML = '<i class="bi bi-person-plus"></i> Follow';
+        } else {
+            btn.className = 'btn-following';
+            btn.textContent = 'Following';
+        }
+        var fc = document.getElementById('fc-' + userId);
+        if (fc && data.followers_count !== undefined) fc.textContent = data.followers_count;
+        btn.disabled = false;
+    })
+    .catch(function() {
+        btn.disabled = false;
+        alert('Failed to update follow status.');
+    });
+}
+</script>
+{% endblock %}

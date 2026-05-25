@@ -1,0 +1,895 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{% endblock %}
+{% block content %}
+<style>
+/* Story seen/mute overrides */
+.story-ring.viewed-story { background: linear-gradient(45deg, #555, #555) !important; }
+.story-ring.muted-story { background: linear-gradient(45deg, #262626, #262626) !important; opacity: 0.5; }
+</style>
+
+<!-- ===== STORIES BAR ===== -->
+<div class="stories-bar">
+    <div class="story-circle" onclick="{% if user_has_stories %}openStoryViewer({{ user.id }}){% else %}location.href='{% url 'story_upload' %}'{% endif %}"
+         data-user-id="{{ user.id }}">
+        <div class="story-ring {% if user_has_stories %}has-story{% else %}no-story{% endif %}" id="ring-{{ user.id }}">
+            <div class="story-ring-inner">
+                {% if user.profile.profile_pic %}
+                    <img src="{{ user.profile.profile_pic.url }}">
+                {% else %}
+                    <div style="width:100%;height:100%;border-radius:50%;background:#363636;display:flex;align-items:center;justify-content:center;">
+                        {% if user_has_stories %}
+                            <i class="bi bi-person-fill" style="font-size:24px;color:#666;"></i>
+                        {% else %}
+                            <i class="bi bi-plus-circle-fill" style="color:#0095f6;font-size:20px;"></i>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        <span class="story-name">Your story</span>
+    </div>
+    {% for story_user in stories_users %}
+    <div class="story-circle" onclick="openStoryViewer({{ story_user.id }})"
+         data-user-id="{{ story_user.id }}"
+         oncontextmenu="event.preventDefault(); showStoryOptions({{ story_user.id }}, '{{ story_user.username|default:story_user.email }}', event)">
+        <div class="story-ring
+            {% if story_user.id in muted_user_ids %}no-story
+            {% elif story_user.id in viewed_user_ids %}viewed-story
+            {% elif story_user.id in users_with_stories %}has-story
+            {% else %}no-story{% endif %}"
+            id="ring-{{ story_user.id }}">
+            <div class="story-ring-inner">
+                {% if story_user.profile.profile_pic %}
+                    <img src="{{ story_user.profile.profile_pic.url }}">
+                {% else %}
+                    <div style="width:100%;height:100%;border-radius:50%;background:#363636;display:flex;align-items:center;justify-content:center;color:#666;">
+                        <i class="bi bi-person-fill" style="font-size:24px;"></i>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        <span class="story-name" style="{% if story_user.id in muted_user_ids %}color:#555;{% endif %}">{{ story_user.username|default:story_user.email|truncatechars:8 }}</span>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- ===== REELS STRIP ===== -->
+{% if feed_reels %}
+<div class="feed-reels-strip">
+    <div class="feed-reels-header">
+        <i class="bi bi-camera-reels" style="color:#0095f6;font-size:18px;"></i>
+        <span style="font-weight:600;font-size:15px;">Reels</span>
+        <a href="{% url 'reels' %}" style="margin-left:auto;font-size:13px;color:#0095f6;text-decoration:none;">See all</a>
+    </div>
+    <div class="feed-reels-scroll">
+        {% for reel in feed_reels %}
+        {% if reel.video_exists %}
+        <div class="feed-reel-card" onclick="location.href='{% url 'reel_detail' reel.id %}'">
+            <video src="{{ reel.video.url }}" muted playsinline preload="metadata"
+                   onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"></video>
+            <div class="feed-reel-overlay">
+                <div class="feed-reel-user">
+                    {% if reel.user.profile.profile_pic %}
+                        <img src="{{ reel.user.profile.profile_pic.url }}">
+                    {% else %}
+                        <i class="bi bi-person-circle" style="font-size:14px;color:#fff;"></i>
+                    {% endif %}
+                    <span>{{ reel.user.username }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ===== POSTS ===== -->
+{% if not posts and not feed_reels %}
+    <div class="no-posts">
+        <i class="bi bi-camera"></i>
+        <h5>No posts yet</h5>
+        <p class="text-muted">Follow users or create your first post!</p>
+        <a href="{% url 'post_create' %}" class="ig-btn-primary">Create Post</a>
+        <a href="{% url 'user_list' %}" class="ig-btn-secondary" style="margin-left:8px;">Discover Users</a>
+    </div>
+{% endif %}
+
+{% for post in posts %}
+<div class="post-card">
+    <div class="post-header">
+        <a href="{% url 'profile' post.user.id %}">
+            {% if post.user.profile.profile_pic %}
+                <img src="{{ post.user.profile.profile_pic.url }}" class="post-avatar">
+            {% else %}
+                <i class="bi bi-person-circle" style="font-size:32px;margin-right:12px;color:#666;"></i>
+            {% endif %}
+        </a>
+        <div>
+            <a href="{% url 'profile' post.user.id %}" class="post-username">{{ post.user.username|default:post.user.email }}</a>
+            <div class="post-location"></div>
+        </div>
+        <div class="post-options" style="position:relative;">
+            <i class="bi bi-three-dots" onclick="event.stopPropagation(); togglePostMenu(this)" style="cursor:pointer;"></i>
+            <div class="post-menu" style="display:none;position:absolute;right:0;top:28px;background:#262626;border:1px solid #363636;border-radius:12px;min-width:200px;z-index:50;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+                {% if post.user == user %}
+                <div style="padding:12px 16px;cursor:pointer;color:#ed4956;font-weight:600;font-size:14px;border-bottom:1px solid #363636;" onclick="deletePost({{ post.id }})">Delete</div>
+                {% endif %}
+                <div style="padding:12px 16px;cursor:pointer;font-size:14px;" onclick="copyPostLink({{ post.id }})">Copy link</div>
+                <div style="padding:12px 16px;cursor:pointer;font-size:14px;color:#555;">Report</div>
+            </div>
+        </div>
+    </div>
+    <div class="post-image-container" onclick="openPostDetail(this)"
+         data-post-id="{{ post.id }}"
+         data-image-url="{% if post.image %}{{ post.image.url }}{% endif %}"
+         data-video-url="{% if post.video %}{{ post.video.url }}{% endif %}"
+         data-username="{{ post.user.username|default:post.user.email }}"
+         data-user-id="{{ post.user.id }}"
+         data-user-pic="{% if post.user.profile.profile_pic %}{{ post.user.profile.profile_pic.url }}{% endif %}"
+         data-caption="{{ post.content }}"
+         data-likes="{{ post.likes.count }}"
+         data-comments="{{ post.comments.count }}"
+         style="cursor:pointer;">
+        {% if post.image %}
+            <img src="{{ post.image.url }}" alt="Post image">
+        {% else %}
+            <div class="post-image-placeholder">
+                <i class="bi bi-image" style="font-size:48px;"></i>
+            </div>
+        {% endif %}
+    </div>
+    <div class="post-actions">
+        <i class="bi {% if request.user in post.likes.all %}bi-heart-fill liked{% else %}bi-heart{% endif %} like-btn" data-post-id="{{ post.id }}"></i>
+        <i class="bi bi-chat" onclick="document.querySelector('#comment-input-{{ post.id }}').focus()"></i>
+        <i class="bi bi-send share-btn" data-post-id="{{ post.id }}" style="cursor:pointer;"></i>
+        <i class="bi {% if post.id in saved_post_ids %}bi-bookmark-fill{% else %}bi-bookmark{% endif %} save-btn" data-post-id="{{ post.id }}" style="cursor:pointer;"></i>
+    </div>
+    <div class="post-likes">
+        <span class="likes-count">{{ post.likes.count }}</span> {% if post.likes.count == 1 %}like{% else %}likes{% endif %}
+    </div>
+    <div class="post-caption">
+        <strong><a href="{% url 'profile' post.user.id %}" class="text-white">{{ post.user.username|default:post.user.email }}</a></strong>
+        {{ post.content }}
+    </div>
+    {% for comment in post.comments.all|slice:":2" %}
+        <div class="post-comment">
+            <strong><a href="{% url 'profile' comment.user.id %}" class="text-white">{{ comment.user.username|default:comment.user.email }}</a></strong>
+            {{ comment.content }}
+        </div>
+    {% endfor %}
+    {% if post.comments.count > 2 %}
+        <div class="post-comments-link" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">
+            View all {{ post.comments.count }} comments
+        </div>
+        <div style="display:none;">
+            {% for comment in post.comments.all|slice:"2:" %}
+                <div class="post-comment">
+                    <strong><a href="{% url 'profile' comment.user.id %}" class="text-white">{{ comment.user.username|default:comment.user.email }}</a></strong>
+                    {{ comment.content }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <div class="post-time">{{ post.created_at|timesince }} ago</div>
+    <div class="post-add-comment">
+        <div class="emoji-wrapper" id="emoji-wrapper-{{ post.id }}">
+            <i class="bi bi-emoji-smile" style="font-size:20px;margin-right:8px;cursor:pointer;" onclick="buildEmojiPicker('emoji-wrapper-{{ post.id }}', 'comment-input-{{ post.id }}'); toggleEmojiPicker('emoji-wrapper-{{ post.id }}', 'comment-input-{{ post.id }}');"></i>
+        </div>
+        <form class="comment-form" data-post-id="{{ post.id }}" style="display:flex;flex:1;">
+            {% csrf_token %}
+            <input type="text" id="comment-input-{{ post.id }}" name="content" placeholder="Add a comment...">
+            <button type="submit">Post</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<!-- ===== POST DETAIL OVERLAY ===== -->
+<div class="post-detail-overlay" id="postDetailOverlay" onclick="closePostDetail(event)">
+    <div class="post-detail-modal" onclick="event.stopPropagation()">
+        <span class="post-detail-close" onclick="closePostDetail()">&times;</span>
+        <div class="post-detail-body">
+            <div class="post-detail-media" id="postDetailMedia"></div>
+            <div class="post-detail-info">
+                <div class="post-detail-header">
+                    <a href="#" id="postDetailUserLink">
+                        <img id="postDetailAvatar" src="" class="post-detail-avatar" alt="">
+                        <span id="postDetailUsername"></span>
+                    </a>
+                </div>
+                <div class="post-detail-caption" id="postDetailCaption"></div>
+                <div class="post-detail-stats">
+                    <span id="postDetailLikes"><i class="bi bi-heart"></i> 0 likes</span>
+                    <span id="postDetailComments"><i class="bi bi-chat"></i> 0 comments</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+/* ===== Feed Reels Strip ===== */
+.feed-reels-strip {
+    background: #0a0a0a; border-radius: 16px; padding: 16px; margin: 16px auto;
+    max-width: 600px; border: 1px solid #1a1a1a;
+}
+.feed-reels-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+}
+.feed-reels-scroll {
+    display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px;
+}
+.feed-reels-scroll::-webkit-scrollbar { display: none; }
+.feed-reel-card {
+    flex: 0 0 130px; height: 230px; border-radius: 12px; overflow: hidden;
+    position: relative; cursor: pointer; border: 1px solid #262626;
+    transition: transform 0.15s;
+}
+.feed-reel-card:hover { transform: scale(1.03); }
+.feed-reel-card video {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.feed-reel-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
+    padding: 40px 8px 8px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+}
+.feed-reel-user {
+    display: flex; align-items: center; gap: 4px; color: #fff; font-size: 11px; font-weight: 600;
+}
+.feed-reel-user img { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; }
+
+.post-detail-overlay {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.85); align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+}
+.post-detail-overlay.active { display: flex; }
+.post-detail-modal {
+    background: #111; border-radius: 16px; max-width: 700px; width: 90%;
+    max-height: 90vh; overflow: hidden; position: relative;
+    border: 1px solid #262626; box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+.post-detail-close {
+    position: absolute; top: 12px; right: 16px; z-index: 10;
+    color: #fff; font-size: 28px; cursor: pointer; line-height: 1;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.post-detail-body { display: flex; flex-direction: column; }
+.post-detail-media {
+    background: #000; display: flex; align-items: center; justify-content: center;
+    max-height: 55vh; overflow: hidden;
+}
+.post-detail-media img, .post-detail-media video {
+    width: 100%; max-height: 55vh; object-fit: contain;
+}
+.post-detail-info { padding: 20px 24px; color: #f5f5f5; }
+.post-detail-header { margin-bottom: 14px; }
+.post-detail-header a { display: flex; align-items: center; text-decoration: none; color: #f5f5f5; }
+.post-detail-avatar {
+    width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+    margin-right: 10px;
+}
+.post-detail-avatar[src=""] { display: none; }
+.post-detail-avatar[src=""] + span { margin-left: 0; }
+.post-detail-header strong { font-size: 15px; font-weight: 600; }
+.post-detail-caption {
+    font-size: 14px; line-height: 1.6; margin-bottom: 14px;
+    max-height: 120px; overflow-y: auto;
+}
+.post-detail-stats {
+    display: flex; gap: 20px; font-size: 13px; color: #888;
+    border-top: 1px solid #262626; padding-top: 14px;
+}
+.post-detail-stats i { margin-right: 4px; }
+</style>
+<script>
+function openPostDetail(el) {
+    var overlay = document.getElementById('postDetailOverlay');
+    if (!overlay) return;
+    var media = document.getElementById('postDetailMedia');
+    var imgUrl = el.dataset.imageUrl;
+    var vidUrl = el.dataset.videoUrl;
+    if (vidUrl) {
+        media.innerHTML = '<video src="' + vidUrl + '" autoplay muted loop playsinline controls style="width:100%;max-height:55vh;object-fit:contain;"></video>';
+    } else if (imgUrl) {
+        media.innerHTML = '<img src="' + imgUrl + '" style="width:100%;max-height:55vh;object-fit:contain;">';
+    } else {
+        media.innerHTML = '<div style="padding:40px;color:#555;text-align:center;"><i class="bi bi-image" style="font-size:48px;display:block;margin-bottom:8px;"></i>No media</div>';
+    }
+    document.getElementById('postDetailUsername').textContent = el.dataset.username;
+    document.getElementById('postDetailAvatar').src = el.dataset.userPic || '';
+    document.getElementById('postDetailUserLink').href = '/users/profile/' + el.dataset.userId + '/';
+    document.getElementById('postDetailCaption').textContent = el.dataset.caption || '';
+    document.getElementById('postDetailLikes').innerHTML = '<i class="bi bi-heart"></i> ' + el.dataset.likes + ' likes';
+    document.getElementById('postDetailComments').innerHTML = '<i class="bi bi-chat"></i> ' + el.dataset.comments + ' comments';
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closePostDetail(e) {
+    if (e && e.target !== document.getElementById('postDetailOverlay') && !e) return;
+    var overlay = document.getElementById('postDetailOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    var media = document.getElementById('postDetailMedia');
+    if (media) media.innerHTML = '';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closePostDetail();
+});
+</script>
+
+<!-- ===== STORY OPTIONS MODAL ===== -->
+<div class="list-modal-overlay" id="storyOptionsModal" onclick="if(event.target===this)this.classList.remove('active')">
+    <div class="list-modal" style="max-width:320px;">
+        <div class="list-modal-header">
+            <h6 id="storyOptionsTitle">Story Options</h6>
+            <button class="close-modal" onclick="document.getElementById('storyOptionsModal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="list-modal-body" id="storyOptionsBody" style="padding:0;">
+            <div style="padding:14px 16px;cursor:pointer;border-bottom:1px solid #262626;display:flex;align-items:center;gap:12px;color:#f5f5f5;font-size:14px;" id="storyMuteOption" onclick="toggleMuteStory()">
+                <i class="bi bi-volume-mute-fill" style="font-size:18px;width:24px;"></i>
+                <span id="storyMuteText">Mute</span>
+            </div>
+            <div style="padding:14px 16px;cursor:pointer;border-bottom:1px solid #262626;display:flex;align-items:center;gap:12px;color:#ed4956;font-size:14px;" onclick="reportStory()">
+                <i class="bi bi-flag-fill" style="font-size:16px;width:24px;"></i>
+                <span>Report</span>
+            </div>
+            <div style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;color:#f5f5f5;font-size:14px;" onclick="copyStoryLink()">
+                <i class="bi bi-link-45deg" style="font-size:18px;width:24px;"></i>
+                <span>Copy link</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const storyViewerOverlay = document.getElementById('storyViewer');
+if (!storyViewerOverlay) {
+    const overlay = document.createElement('div');
+    overlay.className = 'story-viewer-overlay';
+    overlay.id = 'storyViewer';
+    overlay.innerHTML = `
+        <div class="story-viewer" id="storyViewerInner">
+            <div class="story-progress" id="storyProgress"></div>
+            <div class="story-user-info" id="storyUserInfo"></div>
+            <i class="bi bi-x-lg close-btn" onclick="closeFullStoryViewer()"></i>
+            <div class="nav-area prev" onclick="prevStory()"></div>
+            <div class="nav-area next" onclick="nextStory()"></div>
+            <div class="story-content" id="storyContent">
+                <div class="no-story"><div class="icon"><i class="bi bi-plus-circle-fill"></i></div><div>Loading story...</div></div>
+            </div>
+            <button class="story-mute-btn" id="storyMuteBtn" onclick="event.stopPropagation();toggleStoryMute()" style="display:none;"><i class="bi bi-volume-mute-fill"></i></button>
+            <div class="story-bottom-section">
+                <div class="story-mentions" id="storyMentions"></div>
+                <div class="story-caption" id="storyCaption"></div>
+                <div class="story-actions-bar">
+                    <div class="story-actions-left">
+                        <div class="story-views-btn" id="storyViewsBtn" style="display:none;" onclick="openStoryViewers()">
+                            <i class="bi bi-eye-fill"></i> <span id="storyViewsCount">0</span>
+                        </div>
+                    </div>
+                    <div class="story-actions-right">
+                        <div class="story-delete-btn" id="storyDeleteBtn" style="display:none;" onclick="deleteCurrentStory()"><i class="bi bi-trash3"></i></div>
+                        <div class="story-like-btn" id="storyLikeBtn" onclick="toggleStoryLike()">
+                            <i class="bi bi-heart" id="storyLikeIcon"></i>
+                            <span id="storyLikesCount" class="story-like-count">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+// ===== STORY VIEWERS MODAL HTML =====
+(function() {
+    if (document.getElementById('storyViewersModal')) return;
+    var modal = document.createElement('div');
+    modal.className = 'list-modal-overlay';
+    modal.id = 'storyViewersModal';
+    modal.onclick = function(e) { if (e.target === this) closeStoryViewers(); };
+    modal.innerHTML = `
+        <div class="list-modal">
+            <div class="list-modal-header">
+                <h6>Story Views</h6>
+                <button class="close-modal" onclick="closeStoryViewers()">&times;</button>
+            </div>
+            <div class="list-modal-body" id="storyViewersBody">
+                <div class="list-modal-empty"><i class="bi bi-arrow-repeat"></i>Loading...</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+})();
+
+let currentStoryUserIds = [];
+let currentStoryIndex = 0;
+let currentStoryList = [];
+let storyTimer = null;
+let storyProgressInterval = null;
+const STORY_DURATION = 5000;
+
+{% with all_story_user_ids=users_with_stories %}
+currentStoryUserIds = [{% for uid in users_with_stories %}{{ uid }},{% endfor %}];
+{% endwith %}
+
+function openStoryViewer(userId) {
+    const idx = currentStoryUserIds.indexOf(userId);
+    if (idx === -1) return;
+    currentStoryIndex = idx;
+    loadUserStories(userId);
+}
+
+function loadUserStories(userId) {
+    fetch('/story/json/' + userId + '/')
+    .then(r => { if (!r.ok) throw new Error('Network error'); return r.json(); })
+    .then(data => {
+        if (!data.stories || data.stories.length === 0) {
+            alert('No stories available');
+            return;
+        }
+        currentStoryList = data.stories;
+        currentStoryIndex = 0;
+        document.getElementById('storyViewer').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        renderStoryUserInfo(data.user);
+        showStory(0);
+    })
+    .catch(function() {
+        alert('Could not load stories. Please try again.');
+    });
+}
+
+function renderStoryUserInfo(userData) {
+    const info = document.getElementById('storyUserInfo');
+    info.innerHTML = (userData.profile_pic
+        ? '<img src="' + userData.profile_pic + '">'
+        : '<div class="story-avatar-placeholder"><i class="bi bi-person-fill"></i></div>'
+    ) + '<div><div class="name">' + userData.username + '</div><div class="time" id="storyTime"></div></div>';
+}
+
+function showStory(index) {
+    if (!currentStoryList.length || index < 0 || index >= currentStoryList.length) {
+        closeFullStoryViewer();
+        return;
+    }
+    clearStoryTimer();
+    const story = currentStoryList[index];
+    currentStoryIndex = index;
+
+    const content = document.getElementById('storyContent');
+    var muteBtn = document.getElementById('storyMuteBtn');
+    if (story.video_url) {
+        // Start muted (required for autoplay policy), user can unmute via button
+        content.innerHTML = '<video id="storyVideo" src="' + story.video_url + '" autoplay muted playsinline style="width:100%;height:100%;object-fit:contain;"></video>';
+        muteBtn.style.display = 'flex';
+        muteBtn.dataset.muted = 'true';
+        muteBtn.innerHTML = '<i class="bi bi-volume-mute-fill"></i>';
+    } else if (story.image_url) {
+        content.innerHTML = '<img src="' + story.image_url + '" alt="Story" style="width:100%;height:100%;object-fit:contain;">';
+        muteBtn.style.display = 'none';
+    } else {
+        content.innerHTML = '<div class="no-story"><div class="icon"><i class="bi bi-image"></i></div><div>No media</div></div>';
+        muteBtn.style.display = 'none';
+    }
+
+    var caption = story.caption || '';
+    var mentionsHtml = '';
+    if (story.mentions && story.mentions.length > 0) {
+        mentionsHtml = story.mentions.map(function(m) {
+            return '<a href="/users/profile/' + m.id + '/" style="color:#0095f6;font-weight:600;font-size:13px;text-decoration:none;background:rgba(0,0,0,0.5);padding:4px 10px;border-radius:12px;">@' + m.username + '</a>';
+        }).join('');
+        // Replace @mentions in caption with proper profile links
+        story.mentions.forEach(function(m) {
+            var re = new RegExp('@' + m.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+            caption = caption.replace(re, '<a href="/users/profile/' + m.id + '/" style="color:#0095f6;font-weight:600;text-decoration:none;">@' + m.username + '</a>');
+        });
+    }
+    document.getElementById('storyCaption').innerHTML = caption;
+    document.getElementById('storyMentions').innerHTML = mentionsHtml;
+    document.getElementById('storyTime').textContent = story.created_at;
+
+    const deleteBtn = document.getElementById('storyDeleteBtn');
+    deleteBtn.style.display = story.is_owner ? 'block' : 'none';
+
+    // Views button
+    const viewsBtn = document.getElementById('storyViewsBtn');
+    if (story.is_owner) {
+        viewsBtn.style.display = 'flex';
+        document.getElementById('storyViewsCount').textContent = story.views_count || 0;
+    } else {
+        viewsBtn.style.display = 'none';
+    }
+
+    // Like button
+    var likeIcon = document.getElementById('storyLikeIcon');
+    var likesCount = document.getElementById('storyLikesCount');
+    if (story.is_liked) {
+        likeIcon.className = 'bi bi-heart-fill';
+        likeIcon.style.color = '#ed4956';
+    } else {
+        likeIcon.className = 'bi bi-heart';
+        likeIcon.style.color = '';
+    }
+    likesCount.textContent = story.likes_count || 0;
+
+    renderProgressBars();
+
+    if (!story.viewed) {
+        fetch('/story/' + story.id + '/viewed/', { method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'} });
+    }
+
+    startStoryTimer();
+}
+
+function renderProgressBars() {
+    const container = document.getElementById('storyProgress');
+    container.innerHTML = '';
+    currentStoryList.forEach((_, i) => {
+        const bar = document.createElement('div');
+        bar.className = 'story-progress-bar';
+        const fill = document.createElement('div');
+        fill.className = 'fill' + (i === currentStoryIndex ? ' active' : (i < currentStoryIndex ? '' : ''));
+        fill.id = 'progress-fill-' + i;
+        if (i < currentStoryIndex) fill.style.width = '100%';
+        if (i > currentStoryIndex) fill.style.width = '0%';
+        bar.appendChild(fill);
+        container.appendChild(bar);
+    });
+}
+
+function startStoryTimer() {
+    clearStoryTimer();
+    const fill = document.getElementById('progress-fill-' + currentStoryIndex);
+    if (!fill) return;
+    fill.style.width = '0%';
+
+    const story = currentStoryList[currentStoryIndex];
+    const videoEl = document.querySelector('#storyContent video');
+
+    if (videoEl && videoEl.readyState > 0 && videoEl.duration && isFinite(videoEl.duration)) {
+        // Video story — sync progress with playback
+        videoEl.loop = false;
+        var onEnded = function() { videoEl.removeEventListener('ended', onEnded); nextStory(); };
+        videoEl.addEventListener('ended', onEnded);
+        storyProgressInterval = setInterval(function() {
+            if (videoEl.readyState > 0 && videoEl.duration) {
+                var pct = (videoEl.currentTime / videoEl.duration) * 100;
+                fill.style.width = Math.min(pct, 100) + '%';
+            }
+        }, 100);
+        // Fallback: advance if video gets stuck
+        storyTimer = setTimeout(function() {
+            clearStoryTimer();
+            nextStory();
+        }, Math.min(videoEl.duration * 1000 + 1000, 30000));
+    } else {
+        // Image or unknown — use fixed timer
+        const startTime = Date.now();
+        storyProgressInterval = setInterval(function() {
+            var elapsed = Date.now() - startTime;
+            var pct = Math.min((elapsed / STORY_DURATION) * 100, 100);
+            fill.style.width = pct + '%';
+            if (elapsed >= STORY_DURATION) {
+                clearStoryTimer();
+                nextStory();
+            }
+        }, 50);
+    }
+}
+
+function clearStoryTimer() {
+    if (storyProgressInterval) { clearInterval(storyProgressInterval); storyProgressInterval = null; }
+    if (storyTimer) { clearTimeout(storyTimer); storyTimer = null; }
+}
+
+function nextStory() {
+    const next = currentStoryIndex + 1;
+    if (next < currentStoryList.length) {
+        showStory(next);
+    } else {
+        const userIdx = currentStoryUserIds.indexOf(currentStoryList[0]?.userId || 0);
+        const nextUserIdx = userIdx + 1;
+        if (nextUserIdx < currentStoryUserIds.length) {
+            loadUserStories(currentStoryUserIds[nextUserIdx]);
+        } else {
+            closeFullStoryViewer();
+        }
+    }
+}
+
+function prevStory() {
+    const prev = currentStoryIndex - 1;
+    if (prev >= 0) {
+        showStory(prev);
+    } else {
+        const userIdx = currentStoryUserIds.indexOf(currentStoryList[0]?.userId || 0);
+        const prevUserIdx = userIdx - 1;
+        if (prevUserIdx >= 0) {
+            loadUserStories(currentStoryUserIds[prevUserIdx]);
+        }
+    }
+}
+
+function closeFullStoryViewer() {
+    clearStoryTimer();
+    document.getElementById('storyViewer').classList.remove('active');
+    document.body.style.overflow = '';
+    closeStoryViewers();
+    // Update story ring if we viewed a user's stories
+    if (currentStoryList.length > 0) {
+        var userId = currentStoryList[0].userId;
+        if (userId) updateStoryRing(userId);
+    }
+}
+
+function updateStoryRing(userId) {
+    var ring = document.getElementById('ring-' + userId);
+    if (!ring) return;
+    // Check if all stories for this user are now viewed
+    fetch('/story/json/' + userId + '/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.stories || data.stories.length === 0) return;
+        var allViewed = data.stories.every(function(s) { return s.viewed; });
+        if (allViewed) {
+            ring.className = ring.className.replace(/has-story|no-story/g, '').trim() + ' viewed-story';
+        }
+    })
+    .catch(function() {});
+}
+
+// ===== STORY OPTIONS =====
+var storyOptionsUserId = null;
+
+function showStoryOptions(userId, username, event) {
+    storyOptionsUserId = userId;
+    var modal = document.getElementById('storyOptionsModal');
+    document.getElementById('storyOptionsTitle').textContent = username + "'s story";
+    var muteText = document.getElementById('storyMuteText');
+    var muteIcon = document.querySelector('#storyMuteOption i');
+    // Check if muted via data attribute
+    var ring = document.getElementById('ring-' + userId);
+    var isMuted = ring && ring.classList.contains('no-story') && !ring.classList.contains('viewed-story') && !ring.classList.contains('has-story');
+    // Actually check via API
+    fetch('/story/json/' + userId + '/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        // We'll just toggle based on current mute state from server
+        // For now, just show the option
+        muteText.textContent = 'Mute';
+        muteIcon.className = 'bi bi-volume-mute-fill';
+    });
+    modal.classList.add('active');
+}
+
+function toggleMuteStory() {
+    if (!storyOptionsUserId) return;
+    fetch('/story/' + storyOptionsUserId + '/mute/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('storyOptionsModal').classList.remove('active');
+        location.reload();
+    })
+    .catch(function() {
+        alert('Failed to update mute status.');
+    });
+}
+
+function reportStory() {
+    document.getElementById('storyOptionsModal').classList.remove('active');
+    alert('Thank you for your report. We will review this story.');
+}
+
+function copyStoryLink() {
+    document.getElementById('storyOptionsModal').classList.remove('active');
+    if (!currentStoryList.length) return;
+    var story = currentStoryList[currentStoryIndex];
+    var dummy = document.createElement('input');
+    dummy.value = window.location.origin + '/story/' + story.id + '/';
+    document.body.appendChild(dummy);
+    dummy.select();
+    document.execCommand('copy');
+    document.body.removeChild(dummy);
+    var toast = document.getElementById('shareToast');
+    if (toast) {
+        toast.innerHTML = '<i class="bi bi-link-45deg" style="color:#0095f6;margin-right:8px;"></i> Story link copied!';
+        toast.classList.add('show');
+        setTimeout(function() { toast.classList.remove('show'); }, 2000);
+    }
+}
+
+// ===== STORY VIEWERS =====
+function openStoryViewers() {
+    if (!currentStoryList.length) return;
+    var story = currentStoryList[currentStoryIndex];
+    var modal = document.getElementById('storyViewersModal');
+    var body = document.getElementById('storyViewersBody');
+    body.innerHTML = '<div class="list-modal-empty"><i class="bi bi-arrow-repeat"></i>Loading...</div>';
+    modal.classList.add('active');
+    fetch('/story/' + story.id + '/viewers/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.viewers || data.viewers.length === 0) {
+            body.innerHTML = '<div class="list-modal-empty"><i class="bi bi-eye-slash"></i><h6>No views yet</h6></div>';
+            return;
+        }
+        body.innerHTML = data.viewers.map(function(v) {
+            var avatar = v.profile_pic
+                ? '<img src="' + v.profile_pic + '">'
+                : '<div class="avatar-placeholder-sm"><i class="bi bi-person-fill"></i></div>';
+            return '<div class="list-user-row">' +
+                '<a href="/users/profile/' + v.id + '/">' + avatar +
+                '<div class="info"><div class="name">' + v.username + '</div><div class="bio">Viewed ' + v.viewed_at + '</div></div></a>' +
+                '</div>';
+        }).join('');
+    })
+    .catch(function() {
+        body.innerHTML = '<div class="list-modal-empty"><i class="bi bi-exclamation-circle"></i><h6>Failed to load</h6></div>';
+    });
+}
+
+function closeStoryViewers() {
+    var modal = document.getElementById('storyViewersModal');
+    if (modal) modal.classList.remove('active');
+}
+
+// ===== STORY MUTE TOGGLE =====
+function toggleStoryMute() {
+    var video = document.getElementById('storyVideo');
+    var btn = document.getElementById('storyMuteBtn');
+    if (!video || !btn) return;
+    if (video.muted) {
+        video.muted = false;
+        btn.dataset.muted = 'false';
+        btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+    } else {
+        video.muted = true;
+        btn.dataset.muted = 'true';
+        btn.innerHTML = '<i class="bi bi-volume-mute-fill"></i>';
+    }
+}
+
+// Unmute on first tap/click anywhere on the story viewer
+document.getElementById('storyViewer').addEventListener('click', function(e) {
+    // Don't toggle if clicking on nav areas, mute btn, action buttons, mentions, caption
+    if (e.target.closest('.nav-area') || e.target.closest('.story-mute-btn') ||
+        e.target.closest('.story-actions-bar') || e.target.closest('.story-mentions') ||
+        e.target.closest('.story-caption') || e.target.closest('.close-btn')) return;
+    var video = document.getElementById('storyVideo');
+    if (video && video.muted) {
+        video.muted = false;
+        var btn = document.getElementById('storyMuteBtn');
+        if (btn) {
+            btn.dataset.muted = 'false';
+            btn.innerHTML = '<i class="bi bi-volume-up-fill"></i>';
+        }
+    }
+});
+
+// ===== STORY LIKE =====
+function toggleStoryLike() {
+    if (!currentStoryList.length) return;
+    var story = currentStoryList[currentStoryIndex];
+    var icon = document.getElementById('storyLikeIcon');
+    var count = document.getElementById('storyLikesCount');
+    fetch('/story/' + story.id + '/like/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.liked) {
+            icon.className = 'bi bi-heart-fill';
+            icon.style.color = '#ed4956';
+        } else {
+            icon.className = 'bi bi-heart';
+            icon.style.color = '';
+        }
+        count.textContent = data.likes_count;
+        story.likes_count = data.likes_count;
+        story.is_liked = data.liked;
+    })
+    .catch(function() {});
+}
+
+function deleteCurrentStory() {
+    if (!currentStoryList.length) return;
+    if (!confirm('Delete this story?')) return;
+    const storyId = currentStoryList[currentStoryIndex].id;
+    fetch('/story/' + storyId + '/delete/', { method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'} })
+    .then(r => { if (!r.ok) throw new Error('Delete failed'); return r.json(); })
+    .then(data => {
+        if (data.status === 'deleted') {
+            currentStoryList.splice(currentStoryIndex, 1);
+            if (currentStoryList.length === 0) {
+                closeFullStoryViewer();
+                location.reload();
+            } else {
+                showStory(Math.min(currentStoryIndex, currentStoryList.length - 1));
+            }
+        }
+    })
+    .catch(function() {
+        alert('Failed to delete story.');
+    });
+}
+
+document.addEventListener('keydown', function(e) {
+    const viewer = document.getElementById('storyViewer');
+    if (!viewer || !viewer.classList.contains('active')) return;
+    if (e.key === 'Escape') closeFullStoryViewer();
+    if (e.key === 'ArrowRight') nextStory();
+    if (e.key === 'ArrowLeft') prevStory();
+});
+
+// ===== POST THREE-DOT MENU =====
+function togglePostMenu(icon) {
+    var menu = icon.nextElementSibling;
+    var isVisible = menu.style.display === 'block';
+    document.querySelectorAll('.post-menu').forEach(function(m) { m.style.display = 'none'; });
+    menu.style.display = isVisible ? 'none' : 'block';
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.post-options')) {
+        document.querySelectorAll('.post-menu').forEach(function(m) { m.style.display = 'none'; });
+    }
+});
+
+function deletePost(postId) {
+    if (!confirm('Delete this post?')) return;
+    fetch('/post/' + postId + '/delete/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.status === 'deleted') location.reload();
+    })
+    .catch(function() {
+        alert('Failed to delete post.');
+    });
+}
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.save-btn');
+    if (!btn) return;
+    var postId = btn.dataset.postId;
+    fetch('/post/' + postId + '/save/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.classList.remove('bi-bookmark', 'bi-bookmark-fill');
+        btn.classList.add(data.saved ? 'bi-bookmark-fill' : 'bi-bookmark');
+    });
+});
+
+function copyPostLink(postId) {
+    var dummy = document.createElement('input');
+    dummy.value = window.location.origin + '/post/' + postId + '/';
+    document.body.appendChild(dummy);
+    dummy.select();
+    document.execCommand('copy');
+    document.body.removeChild(dummy);
+    var toast = document.getElementById('shareToast');
+    if (toast) {
+        toast.innerHTML = '<i class="bi bi-link-45deg" style="color:#0095f6;margin-right:8px;"></i> Link copied!';
+        toast.classList.add('show');
+        setTimeout(function() { toast.classList.remove('show'); }, 2000);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+{% block title %} - {{ profile_user.username|default:profile_user.email }}{% endblock %}
+{% block content %}
+<style>
+/* ── Profile Header ── */
+.profile-header { display: flex; gap: 40px; padding: 30px 0; border-bottom: 1px solid #262626; max-width: 935px; margin: 0 auto; }
+.profile-avatar { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.profile-avatar-placeholder {
+    width: 150px; height: 150px; border-radius: 50%; background: #262626;
+    display: flex; align-items: center; justify-content: center; font-size: 60px; color: #555;
+}
+.profile-info { flex: 1; }
+.profile-info .username { font-size: 20px; font-weight: 300; margin-bottom: 16px; }
+.profile-stats { display: flex; gap: 40px; margin-bottom: 16px; }
+.profile-stats div { font-size: 16px; }
+.profile-stats strong { font-weight: 600; }
+.profile-stats span { color: #888; }
+.profile-stats .stat-link { cursor: pointer; transition: opacity 0.15s; }
+.profile-stats .stat-link:hover { opacity: 0.7; }
+.profile-bio { font-size: 14px; white-space: pre-wrap; max-width: 400px; }
+
+/* ── Profile Tabs ── */
+.profile-tabs {
+    display: flex; justify-content: center; gap: 60px; border-top: 1px solid #262626;
+    max-width: 935px; margin: 0 auto;
+}
+.profile-tab {
+    display: flex; align-items: center; gap: 6px; padding: 16px 0;
+    font-size: 12px; font-weight: 600; color: #555; letter-spacing: 1px; text-transform: uppercase;
+    border-top: 1px solid transparent; margin-top: -1px; user-select: none;
+    background: none; border-right: none; border-bottom: none; border-left: none;
+    font-family: inherit; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.profile-tab:hover { color: #888; }
+.profile-tab.active { color: #f5f5f5; border-top-color: #f5f5f5; }
+.profile-tab i { font-size: 14px; pointer-events: none; }
+.profile-tab span { pointer-events: none; }
+
+/* ── Profile Grid ── */
+.profile-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px 0;
+    max-width: 935px; margin: 0 auto;
+}
+.profile-grid-item {
+    aspect-ratio: 1; overflow: hidden; background: #1a1a1a; cursor: pointer; border-radius: 2px;
+    display: flex; align-items: center; justify-content: center; position: relative;
+}
+.profile-grid-item img { width: 100%; height: 100%; object-fit: cover; }
+.profile-grid-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.profile-grid-item .grid-placeholder { color: #555; text-align: center; padding: 20px; }
+.profile-grid-item .grid-placeholder i { font-size: 32px; display: block; margin-bottom: 4px; }
+.no-posts { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #555; }
+.no-posts i { font-size: 48px; display: block; margin-bottom: 16px; }
+.no-posts h5 { font-size: 18px; font-weight: 600; color: #f5f5f5; margin-bottom: 12px; }
+.no-posts p { font-size: 14px; color: #777; margin-bottom: 20px; }
+
+/* ── Action Buttons ── */
+.profile-actions { margin-top: 12px; display: flex; gap: 8px; }
+.ig-btn-follow {
+    display: inline-block; background: #0095f6; color: #fff; padding: 7px 24px;
+    border-radius: 8px; font-weight: 600; font-size: 14px; border: none; cursor: pointer;
+    transition: background 0.15s; min-width: 120px; text-align: center;
+}
+.ig-btn-follow:hover { background: #1877f2; }
+.ig-btn-following {
+    display: inline-block; background: transparent; color: #f5f5f5; padding: 7px 24px;
+    border-radius: 8px; font-weight: 600; font-size: 14px; border: 1px solid #363636; cursor: pointer;
+    transition: background 0.15s; min-width: 120px; text-align: center;
+}
+.ig-btn-following:hover { background: #1a1a1a; border-color: #ed4956; color: #ed4956; }
+.ig-btn-edit {
+    display: inline-block; background: transparent; border: 1px solid #363636; color: #f5f5f5;
+    padding: 6px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    text-decoration: none; cursor: pointer;
+}
+.ig-btn-edit:hover { background: #1a1a1a; }
+
+/* ── Followers Modal ── */
+.list-user-row .follow-sm {
+    background: transparent; border: 1px solid #363636; color: #f5f5f5;
+    padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: 0.15s; white-space: nowrap;
+}
+.list-user-row .follow-sm:hover { background: #1a1a1a; }
+.list-user-row .follow-sm.following { border-color: #0095f6; color: #0095f6; }
+
+@media (max-width: 736px) {
+    .profile-header { flex-direction: column; align-items: center; text-align: center; gap: 20px; }
+    .profile-stats { justify-content: center; }
+    .profile-tabs { gap: 20px; }
+}
+</style>
+
+<!-- ===== PROFILE HEADER ===== -->
+<div class="profile-header">
+    <div>
+        {% if profile.profile_pic %}
+            <img src="{{ profile.profile_pic.url }}" class="profile-avatar">
+        {% else %}
+            <div class="profile-avatar-placeholder"><i class="bi bi-person-fill"></i></div>
+        {% endif %}
+    </div>
+    <div class="profile-info">
+        <div class="username">{{ profile_user.username|default:profile_user.email }}</div>
+        <div class="profile-stats">
+            <div><strong>{{ posts_count }}</strong> <span>posts</span></div>
+            <div><strong>{{ reels_count }}</strong> <span>reels</span></div>
+            <div class="stat-link" onclick="openUserList('followers', {{ profile_user.id }})">
+                <strong id="followersCount">{{ followers_count }}</strong> <span>followers</span>
+            </div>
+            <div class="stat-link" onclick="openUserList('following', {{ profile_user.id }})">
+                <strong id="followingCount">{{ following_count }}</strong> <span>following</span>
+            </div>
+        </div>
+        <div class="profile-bio">{{ profile.bio }}</div>
+
+        <div class="profile-actions">
+            {% if user == profile_user %}
+                <a href="{% url 'profile_edit' %}" class="ig-btn-edit">Edit profile</a>
+            {% else %}
+                <button id="followBtn" class="{% if is_following %}ig-btn-following{% else %}ig-btn-follow{% endif %}"
+                        onclick="toggleFollow({{ profile_user.id }})"
+                        data-user-id="{{ profile_user.id }}">
+                    {% if is_following %}Following{% else %}Follow{% endif %}
+                </button>
+                <button class="ig-btn-edit" onclick="location.href='{% url 'chat' profile_user.id %}'">Message</button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ===== PROFILE TABS ===== -->
+<div class="profile-tabs" id="profileTabs">
+    <button class="profile-tab active" data-tab="posts">
+        <i class="bi bi-grid-3x3-gap-fill"></i> <span>Posts</span>
+    </button>
+    <button class="profile-tab" data-tab="reels">
+        <i class="bi bi-camera-reels"></i> <span>Reels</span>
+    </button>
+    <button class="profile-tab" data-tab="tagged">
+        <i class="bi bi-person-tag"></i> <span>Tagged</span>
+    </button>
+</div>
+
+<!-- ===== TAB CONTENT ===== -->
+<div id="profileTabContent">
+    <!-- Posts -->
+    <div class="tab-section" id="tab-posts">
+        <div class="profile-grid">
+            {% for post in posts %}
+            <div class="profile-grid-item">
+                {% if post.image %}
+                    <img src="{{ post.image.url }}">
+                {% else %}
+                    <div class="grid-placeholder"><i class="bi bi-text-paragraph"></i><span>Text</span></div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="no-posts">
+                <i class="bi bi-camera"></i>
+                <h5>No posts yet</h5>
+                {% if user == profile_user %}
+                <a href="{% url 'post_create' %}" class="ig-btn-follow">Share your first post</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Reels -->
+    <div class="tab-section" id="tab-reels" style="display:none;">
+        <div class="profile-grid">
+            {% for reel in reels %}
+            {% if reel.video_exists %}
+            <div class="profile-grid-item">
+                <video src="{{ reel.video.url }}" muted loop playsinline preload="metadata"></video>
+            </div>
+            {% endif %}
+            {% empty %}
+            <div class="no-posts">
+                <i class="bi bi-camera-reels"></i>
+                <h5>No reels yet</h5>
+                {% if user == profile_user %}
+                <a href="{% url 'reel_upload' %}" class="ig-btn-follow">Upload a reel</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Tagged -->
+    <div class="tab-section" id="tab-tagged" style="display:none;">
+        <div class="profile-grid">
+            {% for item in tagged_items %}
+            <div class="profile-grid-item">
+                {% if item.post and item.post.image %}
+                    <img src="{{ item.post.image.url }}">
+                {% elif item.reel and item.reel.video_exists %}
+                    <video src="{{ item.reel.video.url }}" muted loop playsinline preload="metadata"></video>
+                {% else %}
+                    <div class="grid-placeholder"><i class="bi bi-person-tag"></i><span>Tag</span></div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="no-posts">
+                <i class="bi bi-person-tag"></i>
+                <h5>No tags yet</h5>
+                <p>When someone tags you, it will appear here.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ===== FOLLOWERS / FOLLOWING MODAL ===== -->
+<div class="list-modal-overlay" id="listModal" onclick="if(event.target===this)closeListModal()">
+    <div class="list-modal">
+        <div class="list-modal-header">
+            <h6 id="listModalTitle">Followers</h6>
+            <button class="close-modal" onclick="closeListModal()">&times;</button>
+        </div>
+        <div class="list-modal-body" id="listModalBody">
+            <div class="list-modal-empty"><i class="bi bi-arrow-repeat"></i>Loading...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var tabsContainer = document.getElementById('profileTabs');
+    var tabSections = document.getElementById('profileTabContent');
+    if (!tabsContainer || !tabSections) return;
+
+    var tabs = tabsContainer.querySelectorAll('.profile-tab');
+    var sections = {};
+    tabs.forEach(function(t) {
+        var tabName = t.getAttribute('data-tab');
+        var section = document.getElementById('tab-' + tabName);
+        if (section) sections[tabName] = section;
+    });
+
+    function switchTab(tabName) {
+        if (!tabName || !sections[tabName]) return;
+        tabs.forEach(function(t) {
+            t.classList.toggle('active', t.getAttribute('data-tab') === tabName);
+        });
+        Object.keys(sections).forEach(function(key) {
+            sections[key].style.display = key === tabName ? 'block' : 'none';
+        });
+    }
+
+    tabsContainer.addEventListener('click', function(e) {
+        var btn = e.target.closest('.profile-tab');
+        if (!btn) return;
+        var tabName = btn.getAttribute('data-tab');
+        if (!tabName) return;
+        if (btn.classList.contains('active')) return;
+        e.preventDefault();
+        switchTab(tabName);
+    });
+
+    // Ensure initial state
+    var activeTab = tabsContainer.querySelector('.profile-tab.active');
+    if (activeTab) switchTab(activeTab.getAttribute('data-tab'));
+})();
+
+// ===== FOLLOW / UNFOLLOW (AJAX) =====
+function toggleFollow(userId) {
+    var btn = document.getElementById('followBtn');
+    if (!btn) return;
+    var isFollowing = btn.classList.contains('ig-btn-following');
+    var url = isFollowing ? '/users/unfollow/' + userId + '/' : '/users/follow/' + userId + '/';
+    btn.disabled = true;
+    fetch(url, {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (isFollowing) {
+            btn.className = 'ig-btn-follow';
+            btn.textContent = 'Follow';
+        } else {
+            btn.className = 'ig-btn-following';
+            btn.textContent = 'Following';
+        }
+        var fc = document.getElementById('followersCount');
+        if (fc && data.followers_count !== undefined) fc.textContent = data.followers_count;
+        btn.disabled = false;
+    })
+    .catch(function() {
+        btn.disabled = false;
+        alert('Failed to update follow status.');
+    });
+}
+
+// ===== FOLLOWERS / FOLLOWING LIST MODAL =====
+function openUserList(type, userId) {
+    var overlay = document.getElementById('listModal');
+    var body = document.getElementById('listModalBody');
+    var title = document.getElementById('listModalTitle');
+    title.textContent = type === 'followers' ? 'Followers' : 'Following';
+    body.innerHTML = '<div class="list-modal-empty"><i class="bi bi-arrow-repeat"></i>Loading...</div>';
+    overlay.classList.add('active');
+
+    fetch('/users/' + type + '/' + userId + '/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.users || data.users.length === 0) {
+            body.innerHTML = '<div class="list-modal-empty"><i class="bi bi-people"></i><h6>No ' + type + '</h6></div>';
+            return;
+        }
+        body.innerHTML = data.users.map(function(u) {
+            var avatar = u.profile_pic
+                ? '<img src="' + u.profile_pic + '">'
+                : '<div class="avatar-placeholder-sm"><i class="bi bi-person-fill"></i></div>';
+            var followBtn = '';
+            if (type === 'followers' && !u.is_me) {
+                var btnClass = u.is_following_back ? 'follow-sm following' : 'follow-sm';
+                var btnText = u.is_following_back ? 'Following' : 'Follow';
+                followBtn = '<button class="' + btnClass + '" onclick="event.preventDefault(); event.stopPropagation(); listFollowToggle(' + u.id + ', this)">' + btnText + '</button>';
+            }
+            if (type === 'following' && !u.is_me) {
+                var btnClass = u.is_following_back ? 'follow-sm following' : 'follow-sm';
+                var btnText = u.is_following_back ? 'Following' : 'Follow';
+                followBtn = '<button class="' + btnClass + '" onclick="event.preventDefault(); event.stopPropagation(); listFollowToggle(' + u.id + ', this)">' + btnText + '</button>';
+            }
+            return '<div class="list-user-row">' +
+                '<a href="/users/profile/' + u.id + '/">' + avatar +
+                '<div class="info"><div class="name">' + u.username + '</div><div class="bio">' + (u.bio || '') + '</div></div></a>' +
+                followBtn +
+                '</div>';
+        }).join('');
+    })
+    .catch(function() {
+        body.innerHTML = '<div class="list-modal-empty"><i class="bi bi-exclamation-circle"></i><h6>Failed to load</h6></div>';
+    });
+}
+
+function closeListModal() {
+    document.getElementById('listModal').classList.remove('active');
+}
+
+function listFollowToggle(userId, btn) {
+    var isFollowing = btn.classList.contains('following');
+    var url = isFollowing ? '/users/unfollow/' + userId + '/' : '/users/follow/' + userId + '/';
+    btn.disabled = true;
+    fetch(url, {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (isFollowing) {
+            btn.classList.remove('following');
+            btn.textContent = 'Follow';
+        } else {
+            btn.classList.add('following');
+            btn.textContent = 'Following';
+        }
+        var fc = document.getElementById('followersCount');
+        if (fc && data.followers_count !== undefined) fc.textContent = data.followers_count;
+        btn.disabled = false;
+    })
+    .catch(function() { btn.disabled = false; });
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeListModal();
+});
+</script>
+{% endblock %}
