@@ -17,8 +17,8 @@ from .models import (
     LoginActivity, UserSession, RestrictedUser, MutedUser,
     CloseFriend
 )
-from posts.models import Reel, TaggedItem, SavedPost, SavedReel
-from notifications.models import Notification
+from RealityFusion_project.posts.models import Reel, TaggedItem, SavedPost, SavedReel
+from RealityFusion_project.notifications.models import Notification
 
 # ===== AUTH =====
 

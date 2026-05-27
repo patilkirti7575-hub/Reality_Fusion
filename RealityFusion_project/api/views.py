@@ -5,10 +5,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Count
 from django_filters.rest_framework import DjangoFilterBackend
-from users.models import Profile, Follow, Block
-from posts.models import Post, Comment, Story, StoryView, StoryLike, StoryMention, Reel, SavedPost, Report, StoryHighlight, Hashtag, HashtagTrend
-from messaging.models import Message
-from notifications.models import Notification
+from RealityFusion_project.users.models import Profile, Follow, Block
+from RealityFusion_project.posts.models import Post, Comment, Story, StoryView, StoryLike, StoryMention, Reel, SavedPost, Report, StoryHighlight, Hashtag, HashtagTrend
+from RealityFusion_project.messaging.models import Message
+from RealityFusion_project.notifications.models import Notification
 from .serializers import (
     UserSerializer, UserDetailSerializer, ProfileSerializer,
     FollowSerializer, BlockSerializer, HashtagSerializer, HashtagTrendSerializer,

@@ -6,9 +6,9 @@ from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.conf import settings
-from posts.models import Post, Comment, Story, StoryView, Reel, ReelComment, StoryMusic, CameraFilter, ReelAudio
-from messaging.models import Message
-from users.models import CustomUser, Profile, Follow
+from RealityFusion_project.posts.models import Post, Comment, Story, StoryView, Reel, ReelComment, StoryMusic, CameraFilter, ReelAudio
+from RealityFusion_project.messaging.models import Message
+from RealityFusion_project.users.models import CustomUser, Profile, Follow
 from PIL import Image, ImageDraw, ImageFont
 import random
 

@@ -13,8 +13,8 @@ from .models import (
     StoryMusic, StoryPoll, StoryPollVote, StoryReaction, ReelAudio, CameraFilter, CameraEffect
 )
 from .forms import PostForm, StoryForm, ReelForm
-from users.models import CustomUser, Follow
-from notifications.models import Notification
+from RealityFusion_project.users.models import CustomUser, Follow
+from RealityFusion_project.notifications.models import Notification
 
 class FeedView(LoginRequiredMixin, ListView):
     model = Post
@@ -199,7 +199,7 @@ class ReelShareView(LoginRequiredMixin, TemplateView):
         recipient_id = request.POST.get('recipient_id')
 
         if action == 'chat' and recipient_id:
-            from messaging.models import Message
+            from RealityFusion_project.messaging.models import Message
             recipient = get_object_or_404(CustomUser, id=recipient_id)
             Message.objects.create(
                 sender=request.user,

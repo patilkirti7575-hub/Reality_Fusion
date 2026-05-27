@@ -1,7 +1,7 @@
 import os
 from django.db import models
 from django.conf import settings
-from users.models import CustomUser
+from RealityFusion_project.users.models import CustomUser
 from django.utils import timezone
 from datetime import timedelta
 import json

@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import CustomUser
+from RealityFusion_project.users.models import CustomUser
 
 
 class Message(models.Model):

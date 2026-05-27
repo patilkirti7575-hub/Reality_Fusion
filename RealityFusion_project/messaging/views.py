@@ -9,8 +9,8 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .models import Message, MessageReaction, DeletedMessage
-from users.models import CustomUser
-from notifications.models import Notification
+from RealityFusion_project.users.models import CustomUser
+from RealityFusion_project.notifications.models import Notification
 
 
 class ChatListView(LoginRequiredMixin, ListView):
@@ -291,7 +291,7 @@ class SharePostView(LoginRequiredMixin, TemplateView):
         receiver = get_object_or_404(CustomUser, id=user_id)
         if receiver == request.user:
             return JsonResponse({'status': 'error', 'error': 'Cannot share with yourself'}, status=400)
-        from posts.models import Post, Reel
+        from RealityFusion_project.posts.models import Post, Reel
         if post_id:
             post = get_object_or_404(Post, id=post_id)
             content = ''
