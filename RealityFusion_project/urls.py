@@ -22,14 +22,14 @@ from RealityFusion_project.users.views import CustomLoginView, CustomLogoutView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('posts.urls')),
-    path('users/', include('users.urls')),
-    path('messages/', include('messaging.urls')),
-    path('notifications/', include('notifications.urls')),
+    path('', include('RealityFusion_project.posts.urls')),
+    path('users/', include('RealityFusion_project.users.urls')),
+    path('messages/', include('RealityFusion_project.messaging.urls')),
+    path('notifications/', include('RealityFusion_project.notifications.urls')),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', CustomLogoutView.as_view(), name='logout'),
-    path('api/', include('api.urls')),
-    path('assistant/', include('assistant.urls')),
+    path('api/', include('RealityFusion_project.api.urls')),
+    path('assistant/', include('RealityFusion_project.assistant.urls')),
 ]
 
 # Serve media files during development

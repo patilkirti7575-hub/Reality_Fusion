@@ -11,7 +11,7 @@ def auto_seed(sender, **kwargs):
 
 
 class PostsConfig(AppConfig):
-    name = 'posts'
+    name = 'RealityFusion_project.posts'
 
     def ready(self):
         post_migrate.connect(auto_seed, sender=self)

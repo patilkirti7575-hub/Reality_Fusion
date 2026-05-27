@@ -1,4 +1,9 @@
 venv/
 __pycache__/
-cookies.txt
+*.pyc
+Reality_Fusion/
+db.sqlite3
+staticfiles/
+.DS_Store
 nul
+cookies.txt

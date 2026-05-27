@@ -47,12 +47,12 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     # Custom apps
-    'users.apps.UsersConfig',
-    'posts.apps.PostsConfig',
-    'messaging.apps.MessagingConfig',
-    'notifications.apps.NotificationsConfig',
-    'api.apps.ApiConfig',
-    'assistant.apps.AssistantConfig',
+    'RealityFusion_project.users.apps.UsersConfig',
+    'RealityFusion_project.posts.apps.PostsConfig',
+    'RealityFusion_project.messaging.apps.MessagingConfig',
+    'RealityFusion_project.notifications.apps.NotificationsConfig',
+    'RealityFusion_project.api.apps.ApiConfig',
+    'RealityFusion_project.assistant.apps.AssistantConfig',
 ]
 
 MIDDLEWARE = [
@@ -71,7 +71,7 @@ ROOT_URLCONF = 'RealityFusion_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'RealityFusion_project' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -142,10 +142,10 @@ import os
 
 STATIC_URL = 'static/'
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, 'RealityFusion_project', 'staticfiles')
 # Media files (uploaded images)
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR / 'RealityFusion_project' / 'media'
 
 # File upload limits (50MB for video reels)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800

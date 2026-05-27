@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class AssistantConfig(AppConfig):
-    name = 'assistant'
+    name = 'RealityFusion_project.assistant'
