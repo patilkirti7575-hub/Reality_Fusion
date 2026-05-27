@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: reality-fusion
+    runtime: python
+    plan: free
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn RealityFusion_project.wsgi --bind 0.0.0.0:$PORT --workers 4 --timeout 120
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: False
