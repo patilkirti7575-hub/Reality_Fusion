@@ -1,0 +1,591 @@
+{% extends 'base.html' %}
+{% block title %} - AI Assistant{% endblock %}
+{% block content %}
+<style>
+:root {
+    --ai-accent: #a855f7;
+    --ai-accent-glow: rgba(168, 85, 247, 0.3);
+    --ai-user-bubble: #1a1a2e;
+    --ai-bot-bubble: #16213e;
+}
+.ai-container { max-width: 900px; margin: 0 auto; display: flex; gap: 16px; height: calc(100vh - 100px); }
+.ai-sidebar { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.ai-sidebar h5 { font-size: 14px; color: #888; margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
+.ai-new-btn {
+    width: 100%; padding: 10px 16px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--ai-accent), #7c3aed);
+    color: white; border: none; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px;
+    justify-content: center;
+}
+.ai-new-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--ai-accent-glow); }
+.ai-chat-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.ai-chat-item {
+    padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: 0.15s;
+    font-size: 13px; color: #aaa; display: flex; align-items: center; gap: 8px;
+    background: none; border: none; width: 100%; text-align: left; font-family: inherit;
+}
+.ai-chat-item:hover { background: #1a1a2e; color: #f5f5f5; }
+.ai-chat-item.active { background: #1a1a2e; color: var(--ai-accent); }
+.ai-chat-item .del-btn {
+    margin-left: auto; opacity: 0; transition: 0.15s; color: #ed4956;
+    background: none; border: none; font-size: 16px; cursor: pointer; padding: 2px 4px;
+}
+.ai-chat-item:hover .del-btn { opacity: 1; }
+
+.ai-main { flex: 1; display: flex; flex-direction: column; background: #0a0a14; border-radius: 16px; border: 1px solid #1a1a2e; overflow: hidden; }
+.ai-header {
+    padding: 14px 20px; border-bottom: 1px solid #1a1a2e; display: flex;
+    align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.ai-header .ai-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ai-header .ai-title i { color: var(--ai-accent); }
+.ai-lang-select {
+    background: #1a1a2e; border: 1px solid #262626; border-radius: 8px;
+    color: #f5f5f5; padding: 6px 12px; font-size: 13px; outline: none; cursor: pointer;
+}
+
+.ai-messages {
+    flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+    scrollbar-width: thin; scrollbar-color: #1a1a2e transparent;
+}
+.ai-messages::-webkit-scrollbar { width: 4px; }
+.ai-messages::-webkit-scrollbar-thumb { background: #1a1a2e; border-radius: 2px; }
+
+.ai-msg { max-width: 85%; display: flex; flex-direction: column; gap: 4px; animation: aiFadeIn 0.3s ease; }
+@keyframes aiFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.ai-msg.user { align-self: flex-end; }
+.ai-msg.assistant { align-self: flex-start; }
+.ai-msg .bubble {
+    padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6;
+    white-space: pre-wrap; word-wrap: break-word;
+}
+.ai-msg.user .bubble {
+    background: var(--ai-accent); color: white;
+    border-bottom-right-radius: 4px;
+}
+.ai-msg.assistant .bubble {
+    background: #1a1a2e; color: #e0e0e0;
+    border-bottom-left-radius: 4px; border: 1px solid #1e1e32;
+}
+.ai-msg .time { font-size: 10px; color: #555; padding: 0 4px; }
+
+.ai-typing {
+    align-self: flex-start; display: none; padding: 12px 16px;
+    background: #1a1a2e; border-radius: 16px; border-bottom-left-radius: 4px;
+    border: 1px solid #1e1e32; gap: 4px;
+}
+.ai-typing.active { display: flex; }
+.ai-typing-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--ai-accent);
+    animation: aiTypingPulse 1.4s infinite;
+}
+.ai-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes aiTypingPulse { 0%,60%,100% { opacity: 0.3; } 30% { opacity: 1; } }
+
+.ai-input-wrap { padding: 12px 16px; border-top: 1px solid #1a1a2e; flex-shrink: 0; }
+.ai-input-row { display: flex; align-items: center; gap: 8px; }
+.ai-input-row input {
+    flex: 1; background: #1a1a2e; border: 1px solid #262626; border-radius: 24px;
+    padding: 10px 18px; color: #f5f5f5; font-size: 14px; outline: none; transition: 0.15s;
+}
+.ai-input-row input:focus { border-color: var(--ai-accent); }
+.ai-input-row input::placeholder { color: #555; }
+.ai-input-row button {
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: var(--ai-accent); color: white; font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0;
+}
+.ai-input-row button:hover { background: #9333ea; transform: scale(1.05); }
+.ai-input-row button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.ai-features {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0 0 8px;
+}
+.ai-feature-btn {
+    padding: 6px 10px; border-radius: 20px; border: 1px solid #1e1e32;
+    background: transparent; color: #888; font-size: 11px; cursor: pointer;
+    transition: 0.15s; display: flex; align-items: center; gap: 4px; justify-content: center;
+    white-space: nowrap; font-family: inherit;
+}
+.ai-feature-btn:hover { border-color: var(--ai-accent); color: var(--ai-accent); background: rgba(168,85,247,0.08); }
+.ai-feature-btn i { font-size: 12px; }
+
+.ai-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 16px; padding: 40px; text-align: center; }
+.ai-welcome i { font-size: 64px; color: var(--ai-accent); opacity: 0.6; }
+.ai-welcome h3 { font-size: 20px; font-weight: 600; color: #f5f5f5; margin: 0; }
+.ai-welcome p { color: #666; font-size: 14px; max-width: 400px; margin: 0; }
+.ai-welcome .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.ai-welcome .feat { padding: 10px 16px; border-radius: 12px; background: #1a1a2e; border: 1px solid #1e1e32; font-size: 12px; color: #aaa; text-align: center; }
+
+/* Content generation modal */
+.ai-gen-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+.ai-gen-modal.active { display: flex; }
+.ai-gen-modal-inner {
+    background: #0d0d1a; border: 1px solid #1a1a2e; border-radius: 20px;
+    width: 520px; max-width: 92vw; max-height: 90vh; overflow: hidden;
+    box-shadow: 0 8px 40px rgba(168,85,247,0.15);
+}
+.ai-gen-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid #1a1a2e;
+}
+.ai-gen-header h5 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.ai-gen-header .close { color: #555; font-size: 24px; cursor: pointer; background: none; border: none; }
+.ai-gen-body { padding: 20px; overflow-y: auto; max-height: calc(90vh - 140px); }
+.ai-gen-body label { font-size: 13px; color: #888; display: block; margin-bottom: 6px; }
+.ai-gen-body input, .ai-gen-body select, .ai-gen-body textarea {
+    width: 100%; background: #1a1a2e; border: 1px solid #262626; border-radius: 10px;
+    padding: 10px 14px; color: #f5f5f5; font-size: 14px; outline: none; margin-bottom: 14px;
+    font-family: inherit; transition: 0.15s; box-sizing: border-box;
+}
+.ai-gen-body input:focus, .ai-gen-body select:focus, .ai-gen-body textarea:focus { border-color: var(--ai-accent); }
+.ai-gen-body textarea { min-height: 100px; resize: vertical; }
+.ai-gen-btn {
+    width: 100%; padding: 12px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, var(--ai-accent), #7c3aed); color: white;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s;
+}
+.ai-gen-btn:hover { box-shadow: 0 4px 20px var(--ai-accent-glow); }
+.ai-gen-result {
+    display: none; margin-top: 16px; padding: 14px; border-radius: 12px;
+    background: #1a1a2e; border: 1px solid #1e1e32; white-space: pre-wrap;
+    font-size: 14px; line-height: 1.6; color: #e0e0e0;
+}
+.ai-gen-result.active { display: block; }
+.ai-copy-btn {
+    margin-top: 12px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--ai-accent);
+    background: transparent; color: var(--ai-accent); cursor: pointer; font-size: 12px;
+    transition: 0.15s; display: inline-flex; align-items: center; gap: 4px;
+}
+.ai-copy-btn:hover { background: rgba(168,85,247,0.1); }
+
+/* AI floating button */
+.ai-float-btn {
+    position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px;
+    border-radius: 50%; border: none;
+    background: linear-gradient(135deg, var(--ai-accent), #7c3aed);
+    color: white; font-size: 24px; cursor: pointer; z-index: 999;
+    box-shadow: 0 4px 20px var(--ai-accent-glow);
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.2s; animation: aiFloatPulse 3s infinite;
+}
+@keyframes aiFloatPulse { 0%,100% { box-shadow: 0 4px 20px var(--ai-accent-glow); } 50% { box-shadow: 0 4px 30px rgba(168,85,247,0.5); } }
+.ai-float-btn:hover { transform: scale(1.1); }
+
+@media (max-width: 768px) {
+    .ai-container { flex-direction: column; height: calc(100vh - 80px); }
+    .ai-sidebar { width: 100%; flex-direction: row; overflow-x: auto; gap: 4px; }
+    .ai-sidebar h5 { display: none; }
+    .ai-chat-list { flex-direction: row; }
+    .ai-chat-item { white-space: nowrap; font-size: 12px; padding: 6px 10px; }
+    .ai-chat-item .del-btn { display: none; }
+    .ai-features { grid-template-columns: repeat(2, 1fr); }
+    .ai-welcome .features-grid { grid-template-columns: 1fr; }
+    .ai-float-btn { bottom: 64px; right: 16px; width: 48px; height: 48px; font-size: 20px; }
+}
+</style>
+
+<div class="ai-container">
+    <!-- Sidebar -->
+    <div class="ai-sidebar">
+        <button class="ai-new-btn" onclick="newChat()"><i class="bi bi-plus-lg"></i> New Chat</button>
+        <h5><i class="bi bi-clock-history"></i> Recent</h5>
+        <div class="ai-chat-list" id="aiChatList">
+            {% for chat in chats %}
+            <button class="ai-chat-item" data-chat-id="{{ chat.id }}" onclick="switchChat({{ chat.id }})">
+                <i class="bi bi-chat-dots" style="font-size:14px;"></i>
+                <span class="title">{{ chat.title }}</span>
+                <button class="del-btn" onclick="event.stopPropagation();deleteChat({{ chat.id }})">&times;</button>
+            </button>
+            {% empty %}
+            <div style="text-align:center;padding:20px;color:#555;font-size:13px;">No chats yet</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Main Chat -->
+    <div class="ai-main">
+        <div class="ai-header">
+            <div class="ai-title"><i class="bi bi-stars"></i> <span id="aiChatTitle">RealityAI</span></div>
+            <select class="ai-lang-select" id="aiLang">
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Marathi">Marathi</option>
+                <option value="Tamil">Tamil</option>
+                <option value="Telugu">Telugu</option>
+                <option value="Punjabi">Punjabi</option>
+                <option value="Korean">Korean</option>
+            </select>
+        </div>
+
+        <div class="ai-messages" id="aiMessages">
+            <div class="ai-welcome" id="aiWelcome">
+                <i class="bi bi-stars"></i>
+                <h3>RealityAI</h3>
+                <p>Your creative assistant for content, captions, hashtags, and ideas</p>
+                <div class="features-grid">
+                    <div class="feat"><i class="bi bi-pencil"></i> Captions</div>
+                    <div class="feat"><i class="bi bi-hash"></i> Hashtags</div>
+                    <div class="feat"><i class="bi bi-camera-reels"></i> Reel Scripts</div>
+                    <div class="feat"><i class="bi bi-translate"></i> Translate</div>
+                </div>
+            </div>
+            <div class="ai-typing" id="aiTyping">
+                <div class="ai-typing-dot"></div>
+                <div class="ai-typing-dot"></div>
+                <div class="ai-typing-dot"></div>
+            </div>
+        </div>
+
+        <div class="ai-input-wrap">
+            <div class="ai-features">
+                <button class="ai-feature-btn" onclick="openGenModal('caption')"><i class="bi bi-pencil"></i> Caption</button>
+                <button class="ai-feature-btn" onclick="openGenModal('hashtag')"><i class="bi bi-hash"></i> Hashtags</button>
+                <button class="ai-feature-btn" onclick="openGenModal('reel_script')"><i class="bi bi-camera-reels"></i> Reel</button>
+                <button class="ai-feature-btn" onclick="openGenModal('translate')"><i class="bi bi-translate"></i> Translate</button>
+            </div>
+            <div class="ai-input-row">
+                <input type="text" id="aiInput" placeholder="Ask me anything..." autocomplete="off"
+                       onkeydown="if(event.key==='Enter')sendMessage()">
+                <button id="aiSendBtn" onclick="sendMessage()"><i class="bi bi-send-fill"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generation Modal -->
+<div class="ai-gen-modal" id="aiGenModal">
+    <div class="ai-gen-modal-inner">
+        <div class="ai-gen-header">
+            <h5 id="genModalTitle"><i class="bi bi-stars"></i> Generate</h5>
+            <button class="close" onclick="closeGenModal()">&times;</button>
+        </div>
+        <div class="ai-gen-body">
+            <div id="genFields"></div>
+            <button class="ai-gen-btn" id="genSubmitBtn" onclick="generateContent()">
+                <i class="bi bi-stars"></i> Generate
+            </button>
+            <div class="ai-gen-result" id="genResult"></div>
+            <button class="ai-copy-btn" id="genCopyBtn" onclick="copyGenResult()" style="display:none;">
+                <i class="bi bi-clipboard"></i> Copy
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if not request.resolver_match.url_name == 'ai_assistant' %}
+<a href="{% url 'ai_assistant' %}" class="ai-float-btn" title="AI Assistant">
+    <i class="bi bi-stars"></i>
+</a>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentChatId = null;
+let isSending = false;
+
+function getCookie(name) {
+    let val = null;
+    if (document.cookie && document.cookie !== '') {
+        document.cookie.split(';').some(function(c) {
+            c = c.trim();
+            if (c.substring(0, name.length + 1) === (name + '=')) {
+                val = decodeURIComponent(c.substring(name.length + 1));
+                return true;
+            }
+        });
+    }
+    return val;
+}
+const csrftoken = getCookie('csrftoken');
+
+// ===== CHAT =====
+function newChat() {
+    currentChatId = null;
+    document.getElementById('aiChatTitle').textContent = 'RealityAI';
+    document.getElementById('aiMessages').innerHTML = `
+        <div class="ai-welcome" id="aiWelcome">
+            <i class="bi bi-stars"></i>
+            <h3>RealityAI</h3>
+            <p>Your creative assistant for content, captions, hashtags, and ideas</p>
+            <div class="features-grid">
+                <div class="feat"><i class="bi bi-pencil"></i> Captions</div>
+                <div class="feat"><i class="bi bi-hash"></i> Hashtags</div>
+                <div class="feat"><i class="bi bi-camera-reels"></i> Reel Scripts</div>
+                <div class="feat"><i class="bi bi-translate"></i> Translate</div>
+            </div>
+        </div>
+        <div class="ai-typing" id="aiTyping">
+            <div class="ai-typing-dot"></div>
+            <div class="ai-typing-dot"></div>
+            <div class="ai-typing-dot"></div>
+        </div>`;
+    document.querySelectorAll('.ai-chat-item').forEach(function(t) { t.classList.remove('active'); });
+    document.getElementById('aiInput').focus();
+}
+
+function switchChat(chatId) {
+    currentChatId = chatId;
+    document.querySelectorAll('.ai-chat-item').forEach(function(t) {
+        t.classList.toggle('active', parseInt(t.dataset.chatId, 10) === chatId);
+    });
+    var container = document.getElementById('aiMessages');
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#555;"><i class="bi bi-arrow-repeat"></i> Loading...</div>';
+    container.innerHTML += '<div class="ai-typing" id="aiTyping"><div class="ai-typing-dot"></div><div class="ai-typing-dot"></div><div class="ai-typing-dot"></div></div>';
+
+    fetch('/assistant/api/chat/' + chatId + '/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('aiChatTitle').textContent = data.chat_title || 'RealityAI';
+        container.innerHTML = '';
+        data.messages.forEach(function(m) {
+            container.appendChild(renderMessage(m.role, m.content));
+        });
+        container.innerHTML += '<div class="ai-typing" id="aiTyping"><div class="ai-typing-dot"></div><div class="ai-typing-dot"></div><div class="ai-typing-dot"></div></div>';
+        scrollToBottomAI();
+    });
+}
+
+function deleteChat(chatId) {
+    if (!confirm('Delete this chat?')) return;
+    fetch('/assistant/api/chat/' + chatId + '/delete/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken },
+    })
+    .then(function() {
+        if (currentChatId === chatId) newChat();
+        var btn = document.querySelector('.ai-chat-item[data-chat-id="' + chatId + '"]');
+        if (btn) btn.remove();
+    });
+}
+
+function renderMessage(role, content) {
+    var div = document.createElement('div');
+    div.className = 'ai-msg ' + role;
+    var bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = content;
+    div.appendChild(bubble);
+    var time = document.createElement('div');
+    time.className = 'time';
+    var d = new Date();
+    time.textContent = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    div.appendChild(time);
+    return div;
+}
+
+function scrollToBottomAI() {
+    var el = document.getElementById('aiMessages');
+    el.scrollTop = el.scrollHeight;
+}
+
+function sendMessage() {
+    var input = document.getElementById('aiInput');
+    var msg = input.value.trim();
+    if (!msg || isSending) return;
+
+    isSending = true;
+    var btn = document.getElementById('aiSendBtn');
+    btn.disabled = true;
+    input.value = '';
+
+    // Hide welcome
+    var welcome = document.getElementById('aiWelcome');
+    if (welcome) welcome.style.display = 'none';
+
+    // Add user message
+    var container = document.getElementById('aiMessages');
+    container.insertBefore(renderMessage('user', msg), document.getElementById('aiTyping'));
+    scrollToBottomAI();
+
+    // Show typing
+    document.getElementById('aiTyping').classList.add('active');
+    scrollToBottomAI();
+
+    var lang = document.getElementById('aiLang').value;
+
+    fetch('/assistant/api/chat/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            message: msg,
+            chat_id: currentChatId,
+            language: lang,
+        }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('aiTyping').classList.remove('active');
+        if (data.status === 'success') {
+            container.insertBefore(renderMessage('assistant', data.response), document.getElementById('aiTyping'));
+            if (!currentChatId && data.chat_id) {
+                currentChatId = data.chat_id;
+                document.getElementById('aiChatTitle').textContent = data.chat_title || 'RealityAI';
+                loadChatsList();
+            }
+            scrollToBottomAI();
+        }
+    })
+    .catch(function() {
+        document.getElementById('aiTyping').classList.remove('active');
+    })
+    .finally(function() {
+        isSending = false;
+        btn.disabled = false;
+        input.focus();
+    });
+}
+
+function loadChatsList() {
+    fetch('/assistant/api/chats/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var list = document.getElementById('aiChatList');
+        if (!data.chats || data.chats.length === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:20px;color:#555;font-size:13px;">No chats yet</div>';
+            return;
+        }
+        list.innerHTML = '';
+        data.chats.forEach(function(c) {
+            var btn = document.createElement('button');
+            btn.className = 'ai-chat-item' + (c.id === currentChatId ? ' active' : '');
+            btn.dataset.chatId = c.id;
+            btn.innerHTML = '<i class="bi bi-chat-dots" style="font-size:14px;"></i>'
+                + '<span class="title">' + c.title + '</span>'
+                + '<button class="del-btn" onclick="event.stopPropagation();deleteChat(' + c.id + ')">&times;</button>';
+            btn.onclick = function() { switchChat(c.id); };
+            list.appendChild(btn);
+        });
+    });
+}
+
+// ===== CONTENT GENERATION =====
+var genType = '';
+
+function openGenModal(type) {
+    genType = type;
+    var modal = document.getElementById('aiGenModal');
+    var fields = document.getElementById('genFields');
+    var title = document.getElementById('genModalTitle');
+    var result = document.getElementById('genResult');
+    result.classList.remove('active');
+    result.textContent = '';
+    document.getElementById('genCopyBtn').style.display = 'none';
+
+    var html = '';
+    var titleText = 'Generate';
+
+    if (type === 'caption') {
+        titleText = 'Generate Captions';
+        html = '<label>Topic / Theme</label><input type="text" id="genTopic" placeholder="e.g. sunset beach vibes">'
+            + '<label>Language</label><select id="genLang"><option value="English">English</option><option value="Hindi">Hindi</option><option value="Marathi">Marathi</option><option value="Tamil">Tamil</option><option value="Telugu">Telugu</option><option value="Punjabi">Punjabi</option><option value="Korean">Korean</option></select>';
+    } else if (type === 'hashtag') {
+        titleText = 'Generate Hashtags';
+        html = '<label>Topic</label><input type="text" id="genTopic" placeholder="e.g. travel photography">'
+            + '<label>Language</label><select id="genLang"><option value="English">English</option><option value="Hindi">Hindi</option><option value="Marathi">Marathi</option><option value="Tamil">Tamil</option><option value="Telugu">Telugu</option><option value="Punjabi">Punjabi</option><option value="Korean">Korean</option></select>';
+    } else if (type === 'bio') {
+        titleText = 'Generate Bio';
+        html = '<label>Your Name</label><input type="text" id="genName" placeholder="Your name">'
+            + '<label>Vibe</label><select id="genVibe"><option value="cool">Cool</option><option value="funny">Funny</option><option value="professional">Professional</option><option value="romantic">Romantic</option><option value="mysterious">Mysterious</option></select>'
+            + '<label>Language</label><select id="genLang"><option value="English">English</option><option value="Hindi">Hindi</option><option value="Marathi">Marathi</option><option value="Tamil">Tamil</option><option value="Telugu">Telugu</option><option value="Punjabi">Punjabi</option><option value="Korean">Korean</option></select>';
+    } else if (type === 'comment') {
+        titleText = 'Generate Reply';
+        html = '<label>Comment Text</label><textarea id="genComment" placeholder="Paste the comment here..."></textarea>'
+            + '<label>Tone</label><select id="genTone"><option value="friendly">Friendly</option><option value="funny">Funny</option><option value="professional">Professional</option><option value="sarcastic">Sarcastic</option></select>'
+            + '<label>Language</label><select id="genLang"><option value="English">English</option><option value="Hindi">Hindi</option><option value="Marathi">Marathi</option><option value="Tamil">Tamil</option><option value="Telugu">Telugu</option><option value="Punjabi">Punjabi</option><option value="Korean">Korean</option></select>';
+    } else if (type === 'reel_script') {
+        titleText = 'Generate Reel Script';
+        html = '<label>Topic / Idea</label><input type="text" id="genTopic" placeholder="e.g. morning routine">'
+            + '<label>Language</label><select id="genLang"><option value="English">English</option><option value="Hindi">Hindi</option><option value="Marathi">Marathi</option><option value="Tamil">Tamil</option><option value="Telugu">Telugu</option><option value="Punjabi">Punjabi</option><option value="Korean">Korean</option></select>';
+    } else if (type === 'story_idea') {
+        titleText = 'Generate Story Ideas';
+        html = '<label>Topic / Theme</label><input type="text" id="genTopic" placeholder="e.g. weekend fun">'
+            + '<label>Language</label><select id="genLang"><option value="English">English</option><option value="Hindi">Hindi</option><option value="Marathi">Marathi</option><option value="Tamil">Tamil</option><option value="Telugu">Telugu</option><option value="Punjabi">Punjabi</option><option value="Korean">Korean</option></select>';
+    } else if (type === 'translate') {
+        titleText = 'Translate';
+        html = '<label>Text to translate</label><textarea id="genText" placeholder="Enter text to translate..."></textarea>'
+            + '<label>Target Language</label><select id="genTarget"><option value="Hindi">Hindi</option><option value="English">English</option><option value="Marathi">Marathi</option><option value="Tamil">Tamil</option><option value="Telugu">Telugu</option><option value="Punjabi">Punjabi</option><option value="Korean">Korean</option></select>';
+    } else if (type === 'enhance') {
+        titleText = 'Enhance Caption';
+        html = '<label>Your Caption</label><textarea id="genCaption" placeholder="Paste your caption here..."></textarea>'
+            + '<label>Language</label><select id="genLang"><option value="English">English</option><option value="Hindi">Hindi</option><option value="Marathi">Marathi</option><option value="Tamil">Tamil</option><option value="Telugu">Telugu</option><option value="Punjabi">Punjabi</option><option value="Korean">Korean</option></select>';
+    }
+
+    title.innerHTML = '<i class="bi bi-stars"></i> ' + titleText;
+    fields.innerHTML = html;
+    modal.classList.add('active');
+}
+
+function closeGenModal() {
+    document.getElementById('aiGenModal').classList.remove('active');
+}
+
+function generateContent() {
+    var data = { type: genType };
+
+    if (genType === 'caption' || genType === 'hashtag' || genType === 'reel_script' || genType === 'story_idea') {
+        data.topic = document.getElementById('genTopic').value.trim();
+        data.language = document.getElementById('genLang').value;
+    } else if (genType === 'bio') {
+        data.name = document.getElementById('genName').value.trim() || 'User';
+        data.vibe = document.getElementById('genVibe').value;
+        data.language = document.getElementById('genLang').value;
+    } else if (genType === 'comment') {
+        data.comment_text = document.getElementById('genComment').value.trim();
+        data.tone = document.getElementById('genTone').value;
+        data.language = document.getElementById('genLang').value;
+    } else if (genType === 'translate') {
+        data.text = document.getElementById('genText').value.trim();
+        data.target_language = document.getElementById('genTarget').value;
+    } else if (genType === 'enhance') {
+        data.caption = document.getElementById('genCaption').value.trim();
+        data.language = document.getElementById('genLang').value;
+    }
+
+    var btn = document.getElementById('genSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Generating...';
+
+    fetch('/assistant/api/generate/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-stars"></i> Generate';
+        if (resp.status === 'success') {
+            var result = document.getElementById('genResult');
+            result.textContent = resp.result;
+            result.classList.add('active');
+            document.getElementById('genCopyBtn').style.display = 'inline-flex';
+        }
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-stars"></i> Generate';
+    });
+}
+
+function copyGenResult() {
+    var text = document.getElementById('genResult').textContent;
+    navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('genCopyBtn');
+        btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        setTimeout(function() { btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy'; }, 2000);
+    });
+}
+
+// Keyboard: Escape closes modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeGenModal();
+});
+</script>
+{% endblock %}

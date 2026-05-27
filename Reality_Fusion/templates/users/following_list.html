@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %} - Following{% endblock %}
+{% block content %}
+<style>
+    .following-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+    .following-card { background: #000; border: 1px solid #262626; border-radius: 12px; overflow: hidden; transition: 0.2s; display: flex; align-items: center; padding: 16px; gap: 14px; }
+    .following-card:hover { border-color: #363636; }
+    .following-card a { display: flex; align-items: center; gap: 14px; flex: 1; text-decoration: none; color: #f5f5f5; min-width: 0; }
+    .following-card img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .following-card .avatar-placeholder { width: 54px; height: 54px; border-radius: 50%; background: #363636; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #555; flex-shrink: 0; }
+    .following-card .info { flex: 1; min-width: 0; }
+    .following-card .info .name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .following-card .info .bio { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-unfollow {
+        background: transparent; color: #f5f5f5; border: 1px solid #363636;
+        padding: 6px 16px; border-radius: 8px; font-weight: 600; font-size: 12px;
+        cursor: pointer; transition: 0.15s; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-unfollow:hover { background: #1a1a1a; border-color: #ed4956; color: #ed4956; }
+    .btn-unfollow.unfollowed { border-color: #0095f6; color: #0095f6; }
+</style>
+
+<div class="page-title" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+    <i class="bi bi-people-fill" style="font-size:22px;"></i>
+    <span>Following</span>
+    <span style="font-size:14px;color:#555;font-weight:400;">({{ follows|length }})</span>
+</div>
+
+{% if follows %}
+<div class="following-grid">
+    {% for f in follows %}
+    {% with u=f.to_user %}
+    <div class="following-card" id="following-card-{{ u.id }}">
+        <a href="{% url 'profile' u.id %}">
+            {% if u.profile.profile_pic %}
+                <img src="{{ u.profile.profile_pic.url }}">
+            {% else %}
+                <div class="avatar-placeholder"><i class="bi bi-person-fill"></i></div>
+            {% endif %}
+            <div class="info">
+                <div class="name">{{ u.username|default:u.email }}</div>
+                <div class="bio">{{ u.profile.bio|truncatechars:60 }}</div>
+            </div>
+        </a>
+        <button class="btn-unfollow" id="unfollow-btn-{{ u.id }}"
+                onclick="unfollowUser({{ u.id }})">
+            Following
+        </button>
+    </div>
+    {% endwith %}
+    {% endfor %}
+</div>
+{% else %}
+<div class="no-posts" style="text-align:center;padding:60px 20px;color:#555;">
+    <i class="bi bi-person-plus" style="font-size:48px;display:block;margin-bottom:16px;"></i>
+    <h5>Not following anyone yet</h5>
+    <p class="text-muted">Discover people to follow and see their posts in your feed!</p>
+    <a href="{% url 'user_list' %}" class="btn-follow" style="display:inline-block;width:auto;padding:7px 24px;text-decoration:none;">Discover People</a>
+</div>
+{% endif %}
+
+<script>
+function unfollowUser(userId) {
+    var btn = document.getElementById('unfollow-btn-' + userId);
+    if (!btn) return;
+    var isFollowing = !btn.classList.contains('unfollowed');
+    var url = isFollowing ? '/users/unfollow/' + userId + '/' : '/users/follow/' + userId + '/';
+    btn.disabled = true;
+    fetch(url, {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (isFollowing) {
+            btn.textContent = 'Follow';
+            btn.classList.add('unfollowed');
+            btn.style.borderColor = '#0095f6';
+            btn.style.color = '#0095f6';
+        } else {
+            btn.textContent = 'Following';
+            btn.classList.remove('unfollowed');
+            btn.style.borderColor = '';
+            btn.style.color = '';
+        }
+        btn.disabled = false;
+    })
+    .catch(function() { btn.disabled = false; });
+}
+</script>
+{% endblock %}

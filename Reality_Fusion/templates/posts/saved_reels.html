@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %} - Saved Reels{% endblock %}
+{% block content %}
+<style>
+    .saved-reels-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .saved-reels-header h3 { font-size: 20px; font-weight: 600; margin: 0; }
+    .saved-reels-header a { color: #0095f6; font-size: 14px; text-decoration: none; }
+    .saved-reels-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    }
+    .saved-reel-item {
+        aspect-ratio: 9/16; overflow: hidden; background: #1a1a1a;
+        border-radius: 4px; position: relative; cursor: pointer;
+    }
+    .saved-reel-item video {
+        width: 100%; height: 100%; object-fit: cover;
+    }
+    .saved-reel-item .play-overlay {
+        position: absolute; inset: 0; display: flex; align-items: center;
+        justify-content: center; background: rgba(0,0,0,0.2);
+    }
+    .saved-reel-item .play-overlay i {
+        font-size: 40px; color: rgba(255,255,255,0.8);
+        text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .saved-reel-item .remove-btn {
+        position: absolute; top: 6px; right: 6px;
+        background: rgba(0,0,0,0.6); color: #fff; border: none;
+        border-radius: 50%; width: 26px; height: 26px; font-size: 13px;
+        cursor: pointer; display: none; align-items: center; justify-content: center;
+        z-index: 2;
+    }
+    .saved-reel-item:hover .remove-btn { display: flex; }
+    .empty-state { grid-column: span 3; text-align: center; padding: 60px 20px; color: #555; }
+    .empty-state i { font-size: 48px; display: block; margin-bottom: 12px; }
+</style>
+
+<div class="saved-reels-header">
+    <h3><i class="bi bi-bookmark" style="margin-right:8px;"></i>Saved Reels</h3>
+    <a href="{% url 'reels' %}"><i class="bi bi-camera-reels"></i> Browse Reels</a>
+</div>
+
+<div class="saved-reels-grid">
+    {% for saved in saved_reels %}
+    {% if saved.reel.video_exists %}
+    <div class="saved-reel-item" onclick="location.href='{% url 'reels' %}'">
+        <video src="{{ saved.reel.video.url }}" muted loop playsinline></video>
+        <div class="play-overlay"><i class="bi bi-play-circle-fill"></i></div>
+        <button class="remove-btn" onclick="event.stopPropagation();unsaveReel({{ saved.reel.id }}, this)">
+            <i class="bi bi-x"></i>
+        </button>
+    </div>
+    {% endif %}
+    {% empty %}
+    <div class="empty-state">
+        <i class="bi bi-camera-reels"></i>
+        <h6>No saved reels</h6>
+        <p style="font-size:13px;">Save reels by tapping the bookmark icon on any reel.</p>
+        <a href="{% url 'reels' %}" class="ig-btn-primary" style="display:inline-block;margin-top:8px;">Browse Reels</a>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function unsaveReel(reelId, btn) {
+    fetch('/reel/' + reelId + '/save/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (!d.saved) {
+            var item = btn.closest('.saved-reel-item');
+            item.style.opacity = '0';
+            item.style.transform = 'scale(0.95)';
+            item.style.transition = '0.3s';
+            setTimeout(function() { item.remove(); if (!document.querySelector('.saved-reel-item')) location.reload(); }, 300);
+        }
+    });
+}
+</script>
+{% endblock %}

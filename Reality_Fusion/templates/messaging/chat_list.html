@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %} - Messages{% endblock %}
+{% block content %}
+<style>
+.chat-list { max-width: 600px; margin: 0 auto; }
+.chat-list-header { border-bottom: 1px solid #262626; padding-bottom: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.chat-item { display: flex; align-items: center; padding: 12px; border-radius: 8px; cursor: pointer; transition: 0.15s; text-decoration: none; color: #f5f5f5; position: relative; }
+.chat-item:hover { background: #1a1a1a; color: #f5f5f5; }
+.chat-item img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; margin-right: 12px; flex-shrink: 0; }
+.chat-item .avatar-placeholder { width: 56px; height: 56px; border-radius: 50%; background: #363636; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0; font-size: 24px; color: #555; }
+.chat-item .info { flex: 1; min-width: 0; }
+.chat-item .info .name { font-size: 14px; font-weight: 600; display: block; }
+.chat-item .info .preview { font-size: 13px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-item .info .preview .me-label { color: #555; }
+.chat-item .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; margin-left: 8px; }
+.chat-item .meta .time { font-size: 11px; color: #555; white-space: nowrap; }
+.chat-item .meta .unread-badge { background: #0095f6; color: white; font-size: 11px; font-weight: 600; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+.no-chats { text-align: center; padding: 60px 20px; }
+.no-chats i { font-size: 64px; color: #363636; margin-bottom: 16px; display: block; }
+</style>
+<div class="chat-list">
+    <div class="chat-list-header">
+        <h4 style="margin:0;"><i class="bi bi-send"></i> Messages</h4>
+        <a href="{% url 'user_list' %}" style="color:#0095f6;font-size:14px;font-weight:600;"><i class="bi bi-pencil-square"></i></a>
+    </div>
+    {% for u in conversations %}
+    <a href="{% url 'chat' u.id %}" class="chat-item">
+        {% if u.profile.profile_pic %}
+            <img src="{{ u.profile.profile_pic.url }}">
+        {% else %}
+            <div class="avatar-placeholder"><i class="bi bi-person-fill"></i></div>
+        {% endif %}
+        <div class="info">
+            <span class="name">{{ u.username|default:u.email }}</span>
+            <span class="preview">
+                {% if u.last_msg_content %}
+                    {% if u.last_msg_is_me %}<span class="me-label">You: </span>{% endif %}
+                    {{ u.last_msg_content }}
+                {% else %}
+                    <span style="color:#555;">No messages yet</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="meta">
+            {% if u.last_msg_timestamp %}
+            <span class="time">{{ u.last_msg_timestamp|date:'g:i A' }}</span>
+            {% endif %}
+            {% if u.unread_count %}
+            <span class="unread-badge">{{ u.unread_count }}</span>
+            {% endif %}
+        </div>
+    </a>
+    {% empty %}
+    <div class="no-chats">
+        <i class="bi bi-send"></i>
+        <h5>No messages yet</h5>
+        <p class="text-muted">Start a conversation with someone!</p>
+        <a href="{% url 'user_list' %}" class="ig-btn-follow">Find People</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

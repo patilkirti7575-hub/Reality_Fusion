@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %} - Tagged{% endblock %}
+{% block content %}
+<style>
+    .tagged-wrap { max-width: 935px; margin: 0 auto; padding: 30px 16px; }
+    .tagged-header { margin-bottom: 24px; }
+    .tagged-header h4 { font-size: 18px; font-weight: 600; }
+    .tagged-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+    }
+    .tagged-item {
+        aspect-ratio: 1; overflow: hidden; position: relative; cursor: pointer;
+        background: #1a1a1a; border-radius: 2px;
+    }
+    .tagged-item img, .tagged-item video {
+        width: 100%; height: 100%; object-fit: cover;
+    }
+    .tagged-item .tagged-overlay {
+        position: absolute; bottom: 0; left: 0; right: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+        padding: 20px 12px 8px; color: #fff; font-size: 12px;
+    }
+    .empty-state {
+        text-align: center; padding: 60px 20px; color: #555;
+        grid-column: span 3;
+    }
+    .empty-state i { font-size: 48px; display: block; margin-bottom: 16px; }
+    .no-posts { grid-column: span 3; text-align: center; padding: 60px 20px; color: #555; }
+</style>
+
+<div class="tagged-wrap">
+    <div class="tagged-header">
+        <h4><i class="bi bi-person-tag"></i> Tagged</h4>
+    </div>
+    <div class="tagged-grid">
+        {% for item in tagged_items %}
+        <div class="tagged-item">
+            {% if item.post and item.post.image %}
+                <img src="{{ item.post.image.url }}">
+            {% elif item.reel and item.reel.video_exists %}
+                <video src="{{ item.reel.video.url }}" muted loop playsinline></video>
+            {% else %}
+                <div style="padding:40px;text-align:center;color:#555;"><i class="bi bi-image"></i></div>
+            {% endif %}
+            <div class="tagged-overlay">
+                Tagged by <strong>{{ item.tagged_by.username|default:item.tagged_by.email }}</strong>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <i class="bi bi-person-tag"></i>
+            <h5>No tags yet</h5>
+            <p>When someone tags you in a post or reel, it will appear here.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
